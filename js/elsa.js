@@ -7,11 +7,11 @@ var os = require('os');
 var readline = require('readline');
 
 // welcome the user
-console.log('__     ___     ____    ____ _           _');
-console.log('\\ \\   / / |   / ___|  / ___| |__   __ _| |_');
-console.log(' \\ \\ / /| |  | |     | |   | \'_ \\ / _` | __|');
-console.log('  \\ V / | |__| |___  | |___| | | | (_| | |_');
-console.log('   \\_/  |_____\\____|  \\____|_| |_|\\__,_|\\__|');
+console.log('      _');
+console.log('  ___| |___  __ _');
+console.log(' / _ \\ / __|/ _` |');
+console.log('|  __/ \\__ \\ (_| |');
+console.log(' \\___|_|___/\\__,_| VLC Chat');
 
 // check for windows
 var isWin = (os.platform() === 'win32' || os.platform() === 'win64');

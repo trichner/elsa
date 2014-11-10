@@ -18,10 +18,10 @@ var ws = require('./websocket');
 module.exports = {
     // lists all vlc devices available
     list : function(callback){
-        listPromised(callback);
+        marcoPolo(callback);
     },
     // lists all vlc devices available
-    connect : function(config,callback){
+    connect : function(retrans,difs,cwmin,cwmax,callback){
         // TODO
     },
     send : function(data){
@@ -32,59 +32,7 @@ module.exports = {
     }
 };
 
-var listDevices = function (callback) {
-    SerialMod.list(function (err, ports) {
-        var devices = [];
-        ports.forEach(function(port) {
-            console.log("Pinging: " + port.comName)
-            var serialPort = new SerialPort(port.comName, {
-                baudrate: BAUDRATE,
-                parser: SerialMod.parsers.readline("\0")
-            });
-            // send ping
-
-            serialPort.on("open", function () {
-
-                // callback for ping
-                var callback =  function (data) {
-                    if (strip(data) == PONG) {
-                        //console.log('got pong!');
-                        // fetch address
-                        sendCommand(serialPort, "a", function (data) {
-                            console.log("Found device: " + data)
-                            devices.push({
-                                path: port.comName,
-                                address: strip(data)
-                            });
-                            serialPort.close(function () {
-                                //console.log("closed");
-                            });
-                        });
-                    } else {
-                        //console.log("Got invalid pong: '" + data + "' instead of '" + PONG + "'");
-                        // either its invalid pong or address, we can close
-                        serialPort.close(function () {
-                            //console.log("closed");
-                        });
-                    }
-                }
-
-                //---- wait for the device to boot
-                setTimeout(function(){
-                    console.log("sending ping '" + CMD_PING + "'");
-                    sendCommand(serialPort, CMD_PING,callback);
-                },300);
-            });
-        });
-        setTimeout(function(){
-            mDevices = devices;
-            callback(devices);
-        },2000);
-
-    });
-};
-
-var listPromised = function (callback) {
+var marcoPolo = function (callback) {
     SerialMod.list(function (err, ports) {
         var devices = [];
         var promises = [];

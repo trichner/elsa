@@ -3,6 +3,7 @@ var BAUDRATE = 115200;
 var PONG = 'vlc4_mobicomp';
 var CMD_PING = 'p';
 var CMD_ADDRESS = 'a';
+var CMD_CONFIG = 'c';
 
 var BOOTDELAY = 2000;
 
@@ -15,14 +16,19 @@ var Promise = require('promise');
 var tools = require("./tools");
 var ws = require('./websocket');
 
+var mySocket = undefined;
+
 module.exports = {
     // lists all vlc devices available
     list : function(callback){
         marcoPolo(callback);
     },
     // lists all vlc devices available
-    connect : function(port,retrans,difs,cwmin,cwmax,callback){
-        // TODO
+    connect : function(path,retrans,difs,cwmin,cwmax,callback){
+        connect(path,retrans,difs,cwmin,cwmax,callback)
+    },
+    disconnect : function(){
+
     },
     send : function(data){
         // TODO
@@ -32,6 +38,52 @@ module.exports = {
     }
 };
 
+var connect = function(path,retrans,difs,cwmin,cwmax,callback){
+    if(mySocket){
+        var e = new Error("Still connected to " + mySocket.path);
+        callback(e);
+        return Promise.reject(e);
+    }
+    var socket = initSocket(path);
+
+    var retString = makeConfig(retrans,difs,cwmin,cwmax);
+    var configCmd = CMD_CONFIG + makeConfig(retrans,difs,cwmin,cwmax)+ '\0';
+    return open(socket)
+        .then(elisten)
+        .then(function (socket) {
+            return wait(socket, BOOTDELAY);
+        })
+        .then(function(socket){
+            return write(socket,configCmd)
+        })
+        .then(drain)
+        //
+        .then(read)
+        .then(function(arr){
+            var socket = arr[0];
+            var json = arr[1];
+            if(json.d==retString){
+                console.log("config set up")
+            }
+            return socket;
+        })
+        .then(function(socket){
+            mySocket = socket;
+            callback();
+        })
+}
+
+var makeConfig = function(retrans,difs,cwmin,cwmax){
+    return retrans + ' ' + difs + ' ' + cwmin +' ' + cwmax ;
+}
+
+var disconnect = function(){
+    if(mySocket){
+        close(mySocket);
+    }
+}
+
+//==== Device Discovery
 var marcoPolo = function (callback) {
     SerialMod.list(function (err, ports) {
         var devices = [];
@@ -53,10 +105,7 @@ var marcoPolo = function (callback) {
 var probePort = function(port,devices){
     console.log("probing: " + port.comName)
 
-    var socket = new SerialPort(port.comName, {
-        baudrate: BAUDRATE,
-        parser: SerialMod.parsers.readline('\0', 'utf8')
-    }, false);
+    var socket = initSocket(port.comName);
 
     // ping one device
     return open(socket)
@@ -81,18 +130,7 @@ var probePort = function(port,devices){
         .then(close,close);
 }
 
-var killall = function(callback){
-    portsInUse.forEach(function(port){
-        port.drain(function(){
-            console.log('Closing port.');
-            port.close();
-        })
-    });
-    setTimeout(function(){
-        portsInUse = [];
-        callback();
-    },1000);
-}
+//==== Promised Methods
 
 var ping = function(port){
     return cmd(port,CMD_PING)
@@ -242,11 +280,29 @@ var wait = function(port,time){
     });
 }
 
+//==== HELPERS
 var strip = function(data){
     var str = new String(data);
     str = str.replace(/(\r\n|\n|\r)/gm,"");
     return str;
 }
+
+var initSocket = function(path){
+    return new SerialPort(path, {
+        baudrate: BAUDRATE,
+        parser: SerialMod.parsers.readline('\0', 'utf8')
+    }, false);
+}
+
+
+var receive = function(callback){
+    return function(arr){
+        var socket = arr[0];
+        var json = arr[1];
+        return callback(socket,json);
+    }
+}
+
 
 function shuffle(o){ //v1.0
     for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);

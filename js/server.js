@@ -1,6 +1,7 @@
 
 
 var serial = require('./serial');
+var pserial = require('./pserial');
 var ws = require('./websocket');
 var rest = require('./rest');
 var parser = require('./parser');
@@ -27,6 +28,7 @@ var apiPort = 80;
 //==== FIXME ugly show-stopper stopper
 process.on('uncaughtException', function (exception) {
     // handle or ignore error
+    console.log("PANIC: " + exception);
 });
 
 //==== setup websocket
@@ -51,6 +53,12 @@ rest.init();
 
 rest.add('/device',function(req,res){
     serial.list(function(devices){
+        res.json(devices);
+    });
+});
+
+rest.add('/list',function(req,res){
+    pserial.plist(function(devices){
         res.json(devices);
     });
 });

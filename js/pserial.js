@@ -1,7 +1,10 @@
 // hardware specific constants, DO NOT CHANGE unless you are a real pro
 var BAUDRATE = 115200;
-var PONG = "vlc4_mobicom";
-var PING = "p";
+var PONG = 'vlc4_mobicomp';
+var CMD_PING = 'p';
+var CMD_ADDRESS = 'a';
+
+var BOOTDELAY = 2000;
 
 // serial port module
 var SerialMod = require("serialport");
@@ -60,7 +63,7 @@ var listDevices = function (callback) {
             console.log("Pinging: " + port.comName)
             var serialPort = new SerialPort(port.comName, {
                 baudrate: BAUDRATE,
-                parser: SerialMod.parsers.readline("\n")
+                parser: SerialMod.parsers.readline("\0")
             });
             // send ping
 
@@ -92,8 +95,8 @@ var listDevices = function (callback) {
 
                 //---- wait for the device to boot
                 setTimeout(function(){
-                    console.log("sending ping '" + PING + "'");
-                    sendCommand(serialPort, PING,callback);
+                    console.log("sending ping '" + CMD_PING + "'");
+                    sendCommand(serialPort, CMD_PING,callback);
                 },300);
             });
         });
@@ -108,89 +111,43 @@ var listDevices = function (callback) {
 var listPromised = function (callback) {
     SerialMod.list(function (err, ports) {
         var devices = [];
-        ports.forEach(function(port) {
+        var promises = [];
+        ports.forEach(function (port) {
+
             console.log("Pinging: " + port.comName)
             var port = new SerialPort(port.comName, {
                 baudrate: BAUDRATE,
-                parser: SerialMod.parsers.readline("\n")
-            },false);
+                parser: SerialMod.parsers.readline('\0', 'utf8')
+            }, false);
 
             // ping one device
-            open(port)
-                .then(function(port){
-                    return write(port,PING);
+            promises.push(open(port)
+                .then(elisten)
+                .then(function (port) {
+                    return wait(port, 2000);
                 })
-                .then(drain)
-                .then(read)
-                .then(function(port,data){
-                    console.log("Got " + data);
-                    if (strip(data) == PONG) {
-                        console.log('got pong!');
-                        // fetch address
-                        /*
-                        sendCommand(serialPort, "a", function (data) {
-                            console.log("Found device: " + data)
-                            devices.push({
-                                path: port.comName,
-                                address: strip(data)
-                            });
-                            serialPort.close(function () {
-                                //console.log("closed");
-                            });
-                        });
-                        */
-                    } else {
-                        //console.log("Got invalid pong: '" + data + "' instead of '" + PONG + "'");
-                        // either its invalid pong or address, we can close
-                        /*
-                        serialPort.close(function () {
-                            //console.log("closed");
-                        });
-                        */
-                    }
+                // send out ping
+                .then(ping)
+                // address
+                .then(address,close)
+                // ok, get address
+                .then(function(arr){
+                    var port = arr[0];
+                    var device = arr[1];
+                    console.log("Found device: " + device.address + " port: " + device.path);
+                    devices.push(device);
+                    return Promise.resolve(port);
+                },close)
+                .then(function (port) {
+                    return wait(port, 100);
                 })
+                .then(close,close));
 
-
-            // send ping
-
-            serialPort.on("open", function () {
-
-                // callback for ping
-                var callback =  function (data) {
-                    if (strip(data) == PONG) {
-                        //console.log('got pong!');
-                        // fetch address
-                        sendCommand(serialPort, "a", function (data) {
-                            console.log("Found device: " + data)
-                            devices.push({
-                                path: port.comName,
-                                address: strip(data)
-                            });
-                            serialPort.close(function () {
-                                //console.log("closed");
-                            });
-                        });
-                    } else {
-                        //console.log("Got invalid pong: '" + data + "' instead of '" + PONG + "'");
-                        // either its invalid pong or address, we can close
-                        serialPort.close(function () {
-                            //console.log("closed");
-                        });
-                    }
-                }
-
-                //---- wait for the device to boot
-                setTimeout(function(){
-                    console.log("sending ping '" + PING + "'");
-                    sendCommand(serialPort, PING,callback);
-                },300);
-            });
         });
-        setTimeout(function(){
-            mDevices = devices;
-            callback(devices);
-        },2000);
-
+        Promise.all(promises)
+            .then(function(){
+                callback(devices);
+            })
     });
 };
 
@@ -207,33 +164,39 @@ var killall = function(callback){
     },1000);
 }
 
-var pong = function(port,data){
-    console.log("Got " + data);
-    if (strip(data) == PONG) {
-        console.log('got pong!');
-        // fetch address
-        return address(port);
-    } else {
-        //console.log("Got invalid pong: '" + data + "' instead of '" + PONG + "'");
-        // either its invalid pong or address, we can close
-        /*
-         serialPort.close(function () {
-         //console.log("closed");
-         });
-         */
-    }
+var ping = function(port){
+    return cmd(port,CMD_PING)
+        .then(function(arr){
+            var port = arr[0];
+            var json = arr[1];
+            return new Promise(function(fullfill,reject){
+                if (strip(json.d) == PONG) {
+                    fullfill(port)
+                } else {
+                    reject(port,new Error("Device not found!"))
+                }
+            })
+        });
+}
+
+var cmd = function(port,cmd){
+    return write(port,cmd)
+        .then(drain)
+        .then(read);
 }
 
 var address = function(port){
-    return write(port,'a')
-        .then(read)
-        .then(function(port,data){
+    return cmd(port,CMD_ADDRESS)
+        .then(function(arr){
+            var port = arr[0];
+            var json = arr[1];
+            //console.log("Arr: %j", arr);
             var device = {
                 path: port.comName,
-                address: strip(data)
+                address: strip(json.d)
             };
-            return Promise.from(port,device);
-        })
+            return Promise.resolve([port,device]);
+        },Promise.reject(port))
 }
 
 var drain = function(port){
@@ -251,8 +214,9 @@ var drain = function(port){
 
 var close = function(port){
     return new Promise(function(fullfill,reject){
+        console.log('closing...');
         port.close(function(error){
-            console.log('closing...');
+            console.log('closed.');
             if(error){
                 reject(error);
             }else{
@@ -264,6 +228,11 @@ var close = function(port){
 
 var write = function(port,data){
     return new Promise(function(fullfill,reject){
+        console.log("writing: '" + data + "'")
+        if(!Buffer.isBuffer(data)){
+            data = new Buffer(data,'utf8')
+        }
+
         port.write(data,function(error){
             console.log('pushed data...');
             if(error){
@@ -281,6 +250,7 @@ var open = function(port){
             if(error){
                 reject(error);
             }else{
+                console.log("opened...")
                 fullfill(port);
             }
         })
@@ -291,19 +261,51 @@ var read = function(port){
     return new Promise(function(fulfill,reject){
         var done = false;
         port.once('data', function(data) {
+            console.log("Got: " + data)
+            console.log("Type: " + typeof data)
             if(!done) {
                 done = true;
-                fulfill(port,data);
+                fulfill([port,JSON.parse(data)]);
             }
         });
         // TIMEOUT
         var TIMEOUT = 1000;
         setTimeout(function(){
             if(!done){
+                console.log("read timeout :(")
                 done=true;
                 reject(new Error("Timeout on port '" + port.comName + "'"));
             }
         },TIMEOUT)
+    });
+}
+
+var listen = function(port){
+    return new Promise(function(fulfill,reject){
+        console.log("listening...")
+        port.on('data', function(data) {
+            console.log("Got: " + data)
+        });
+        fulfill(port);
+    });
+}
+
+var elisten = function(port){
+    return new Promise(function(fulfill,reject){
+        console.log("listening for errors...")
+        port.on('error', function(data) {
+            console.log("oh noes! a serial error!")
+        });
+        fulfill(port);
+    });
+}
+
+var wait = function(port,time){
+    return new Promise(function(fulfill,reject){
+        console.log("waiting " + time + "ms...")
+        setTimeout(function(){
+            fulfill(port);
+        },time);
     });
 }
 

@@ -58,7 +58,7 @@ rest.add('/device',function(req,res){
 });
 
 rest.add('/list',function(req,res){
-    pserial.plist(function(devices){
+    pserial.list(function(devices){
         res.json(devices);
     });
 });

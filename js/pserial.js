@@ -89,43 +89,49 @@ var listPromised = function (callback) {
         var devices = [];
         var promises = [];
         ports.forEach(function (port) {
-
-            console.log("Pinging: " + port.comName)
-            var port = new SerialPort(port.comName, {
-                baudrate: BAUDRATE,
-                parser: SerialMod.parsers.readline('\0', 'utf8')
-            }, false);
-
-            // ping one device
-            promises.push(open(port)
-                .then(elisten)
-                .then(function (port) {
-                    return wait(port, BOOTDELAY);
-                })
-                // ping possible device
-                .then(ping)
-                // got ping, check address
-                .then(address,close)
-                // ok, get address
-                .then(function(arr){
-                    var port = arr[0];
-                    var device = arr[1];
-                    console.log("Found device: " + device.address + " port: " + device.path);
-                    devices.push(device);
-                    return Promise.resolve(port);
-                },close)
-                .then(function (port) {
-                    return wait(port, 100);
-                })
-                .then(close,close));
-
+            promises.push(probePort(port,devices))
         });
+
+        var discoveryDone = function(){
+            console.log("Discovery done.")
+            callback(devices);
+        }
+
         Promise.all(promises)
-            .then(function(){
-                callback(devices);
-            })
+            .then(discoveryDone,discoveryDone);
     });
 };
+
+var probePort = function(port,devices){
+    console.log("probing: " + port.comName)
+
+    var socket = new SerialPort(port.comName, {
+        baudrate: BAUDRATE,
+        parser: SerialMod.parsers.readline('\0', 'utf8')
+    }, false);
+
+    // ping one device
+    return open(socket)
+        .then(elisten)
+        .then(function (socket) {
+            return wait(socket, BOOTDELAY);
+        })
+        // ping possible device
+        .then(ping)
+        // got ping, check address
+        .then(address,close)
+        // ok, get address
+        .then(function(arr){
+            var socket = arr[0];
+            var device = arr[1];
+            devices.push(device);
+            return Promise.resolve(socket);
+        },close)
+        .then(function (socket) {
+            return wait(socket, 100);
+        })
+        .then(close,close);
+}
 
 var killall = function(callback){
     portsInUse.forEach(function(port){
@@ -149,7 +155,7 @@ var ping = function(port){
                 if (strip(json.d) == PONG) {
                     fullfill(port)
                 } else {
-                    reject(port,new Error("Device not found!"))
+                    reject([port,new Error("Device not found!")])
                 }
             })
         });
@@ -168,7 +174,7 @@ var address = function(port){
             var json = arr[1];
             //console.log("Arr: %j", arr);
             var device = {
-                path: port.comName,
+                path: port.path,
                 address: strip(json.d)
             };
             return Promise.resolve([port,device]);
@@ -288,122 +294,11 @@ var wait = function(port,time){
     });
 }
 
-var setupNetwork = function(num,offers,packetSize,socket,callback){
-    if(num<2){
-        callback(new Error("Please use at least 2 devices."));
-        return;
-    }
-
-    listDevices(function(devices){
-        if(devices.length<num){
-            callback(new Error("Discovered to few devices, try a lower number of devices."));
-            return;
-        }
-
-        // select randomly as many as we need
-        devices = shuffle(devices);
-        var usedDevices = devices.slice(0,num);
-        var offer = Math.round(offers/(num-1));
-
-        setupDevices(usedDevices,offer,packetSize,socket);
-    });
-};
-
-var setupDevices = function(devices,offer,packetSize,socket){
-    var receiver = devices[0];
-    sendConfigDeferred = [];
-    onOpenCounter = 0;
-    devices.forEach(function(device,index){
-        // The receiver
-        var sending = 1,dest;
-        if(index==0){
-            sending=0;
-            dest = "FF";
-        }else{
-            dest = receiver.address;
-        }
-        setupDevice(device.path,sending,dest,offer,packetSize,socket);
-    });
-
-    // wait a bit before sending config command
-    recSendConfigs()
-};
-
-var sendConfigDeferred;
-var onOpenCounter;
-
-var recSendConfigs = function(){
-    setTimeout(function() {
-        if(onOpenCounter==portsInUse.length){
-            sendRecDeferred();
-        }else{
-            recSendConfigs();
-        }
-    }, 1000);
-}
-
-var sendRecDeferred = function(){
-    if(sendConfigDeferred.length>0){
-        var fn = sendConfigDeferred.pop();
-        fn();
-        setTimeout(function(){
-            sendRecDeferred();
-        },300);
-    }
-}
-
-var setupDevice = function(path, sending, dest,offer,packetSize,socket){
-
-    var config_string = "1 "+sending+" "+dest+" "+offer+" "+packetSize+" 3 8 16 128 1\n"
-    var serialPort = new SerialPort(path, {
-        baudrate: BAUDRATE,
-        parser: SerialMod.parsers.readline("\n")
-    });
-    portsInUse.push(serialPort);
-
-    serialPort.on("open", function () {
-        console.log('open');
-
-        serialPort.on('data', function(data) {
-            console.log("Received setup: "+data)
-            //console.log("Expected: " + config_string)
-            if(strip(config_string)==strip(data)){
-                console.log("Successful setup!")
-                connectDevice(serialPort,socket);
-            }
-        })
-
-        sendConfigDeferred.push(function(){
-            console.log('sending conf');
-            serialPort.write("o");
-            console.log('should now be in config mode');
-            serialPort.write(config_string);
-        });
-
-        onOpenCounter++;
-    });
-};
-
-var connectDevice = function(serialPort,socket){
-    sendCommand(serialPort,"s",function(data){
-        // stream the log-data here
-        console.log(data)
-        socket.write(data);
-        tools.fileWrite(data+'\r\n');
-    })
-}
-
 var strip = function(data){
     var str = new String(data);
     str = str.replace(/(\r\n|\n|\r)/gm,"");
     return str;
 }
-
-var sendCommand = function(dev,cmd,callback){
-    dev.on('data',callback);
-    dev.write(cmd);
-    dev.drain();
-};
 
 function shuffle(o){ //v1.0
     for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);

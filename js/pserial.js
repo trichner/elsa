@@ -21,7 +21,7 @@ module.exports = {
         marcoPolo(callback);
     },
     // lists all vlc devices available
-    connect : function(retrans,difs,cwmin,cwmax,callback){
+    connect : function(port,retrans,difs,cwmin,cwmax,callback){
         // TODO
     },
     send : function(data){

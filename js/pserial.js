@@ -1,4 +1,4 @@
-t// hardware specific constants, DO NOT CHANGE unless you are a real pro
+// hardware specific constants, DO NOT CHANGE unless you are a real pro
 var BAUDRATE = 115200;
 var PONG = 'vlc4_mobicomp';
 var CMD_PING = 'p';
@@ -15,46 +15,22 @@ var Promise = require('promise');
 var tools = require("./tools");
 var ws = require('./websocket');
 
-var portsInUse = [];
-var mDevices = [];
 module.exports = {
     // lists all vlc devices available
     list : function(callback){
-        list(callback);
-    },
-    plist : function(callback){
         listPromised(callback);
     },
-    // kill all active devices
-    killall : function(callback){
-        killall(callback);
+    // lists all vlc devices available
+    connect : function(config,callback){
+        // TODO
     },
-    // initializes a setup
-    init: function (num,offers,packetSize,socket,callback) {
-        killall(function(){
-            setupNetwork(num,offers,packetSize,socket,callback)
-        });
+    send : function(data){
+        // TODO
     },
-    // initializes a setup
-    setupDevice: function (socket) {
-        killall(function(){
-            list(function(devices){
-                var device = devices[0].path;
-                setupDevice(device,0,"FF",50,100,socket);
-            });
-
-        });
+    onMessage : function(callback){
+        // TODO
     }
 };
-
-var list = function(callback){
-    // memoization
-    if(mDevices.length==0){
-        listDevices(callback);
-    }else{
-        callback(mDevices);
-    }
-}
 
 var listDevices = function (callback) {
     SerialMod.list(function (err, ports) {
@@ -214,7 +190,7 @@ var drain = function(port){
 
 var close = function(port){
     return new Promise(function(fullfill,reject){
-        console.log('closing...');
+        console.log('closing ' + port.comName +'...');
         port.close(function(error){
             console.log('closed.');
             if(error){
@@ -295,6 +271,9 @@ var elisten = function(port){
         console.log("listening for errors...")
         port.on('error', function(data) {
             console.log("oh noes! a serial error!")
+            port.close(function(error){
+
+            })
         });
         fulfill(port);
     });

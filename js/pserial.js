@@ -1,6 +1,6 @@
 // hardware specific constants, DO NOT CHANGE unless you are a real pro
 var BAUDRATE = 115200;
-var PONG = "test";
+var PONG = "vlc4_mobicom";
 var PING = "p";
 
 // serial port module
@@ -18,6 +18,9 @@ module.exports = {
     // lists all vlc devices available
     list : function(callback){
         list(callback);
+    },
+    plist : function(callback){
+        listPromised(callback);
     },
     // kill all active devices
     killall : function(callback){

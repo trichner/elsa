@@ -5,6 +5,10 @@ var CMD_PING = 'p';
 var CMD_ADDRESS = 'a';
 var CMD_CONFIG = 'c';
 
+var EVENT_RECEIVED = '1';
+var EVENT_SENDING = '2';
+var EVENT_SENT = '3';
+
 var BOOTDELAY = 2000;
 
 // serial port module
@@ -25,23 +29,28 @@ module.exports = {
     },
     // lists all vlc devices available
     connect : function(path,retrans,difs,cwmin,cwmax,callback){
-        connect(path,retrans,difs,cwmin,cwmax,callback)
+        return connect(path,retrans,difs,cwmin,cwmax,callback)
     },
     disconnect : function(){
-
+        return disconnect()
     },
     send : function(data){
-        // TODO
+        //UNBUFFERED!
+        if(mySocket){
+            return write(mySocket,data);
+        }
     },
     onMessage : function(callback){
-        // TODO
+        if(mySocket){
+            return onMessage(mySocket,callback);
+        }
     }
 };
 
 var connect = function(path,retrans,difs,cwmin,cwmax,callback){
     if(mySocket){
         var e = new Error("Still connected to " + mySocket.path);
-        callback(e);
+        if(callback)  callback(e);
         return Promise.reject(e);
     }
     var socket = initSocket(path);
@@ -248,11 +257,12 @@ var read = function(port){
     });
 }
 
-var listen = function(port){
+var listen = function(port,callback){
     return new Promise(function(fulfill,reject){
         console.log("listening...")
         port.on('data', function(data) {
             console.log("Got: " + data)
+            callback(JSON.parse(data));
         });
         fulfill(port);
     });
@@ -277,6 +287,14 @@ var wait = function(port,time){
         setTimeout(function(){
             fulfill(port);
         },time);
+    });
+}
+
+var onMessage = function(socket,callback){
+    return listen(socket,function(json){
+        if(json.c==EVENT_RECEIVED){
+            callback(json.d)
+        }
     });
 }
 

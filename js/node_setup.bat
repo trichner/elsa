@@ -6,3 +6,4 @@ call npm install nodejs-websocket
 call npm install serialport
 call npm install connect
 call npm install promise
+call npm install colors

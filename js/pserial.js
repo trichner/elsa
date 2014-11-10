@@ -1,4 +1,4 @@
-// hardware specific constants, DO NOT CHANGE unless you are a real pro
+t// hardware specific constants, DO NOT CHANGE unless you are a real pro
 var BAUDRATE = 115200;
 var PONG = 'vlc4_mobicomp';
 var CMD_PING = 'p';
@@ -124,11 +124,11 @@ var listPromised = function (callback) {
             promises.push(open(port)
                 .then(elisten)
                 .then(function (port) {
-                    return wait(port, 2000);
+                    return wait(port, BOOTDELAY);
                 })
-                // send out ping
+                // ping possible device
                 .then(ping)
-                // address
+                // got ping, check address
                 .then(address,close)
                 // ok, get address
                 .then(function(arr){

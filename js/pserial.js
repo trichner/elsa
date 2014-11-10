@@ -21,7 +21,7 @@ module.exports = {
         marcoPolo(callback);
     },
     // lists all vlc devices available
-    connect : function(port,retrans,difs,cwmin,cwmax,callback){
+    connect : function(path,retrans,difs,cwmin,cwmax,callback){
         // TODO
     },
     send : function(data){
@@ -31,6 +31,10 @@ module.exports = {
         // TODO
     }
 };
+
+var connect = function(path,retrans,difs,cwmin,cwmax,callback){
+
+}
 
 var marcoPolo = function (callback) {
     SerialMod.list(function (err, ports) {

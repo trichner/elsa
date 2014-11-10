@@ -66,7 +66,12 @@ rest.add('/list',function(req,res){
 rest.add('/connect',function(req,res){
     pserial.connect("COM4",3,10,4,16,function(e){
         res.json({ status : "ok"});
-    });
+    })
+        .then(function(){
+            pserial.onMessage(function(data){
+                console.log("Data: " + data)
+            })
+        });
 });
 
 

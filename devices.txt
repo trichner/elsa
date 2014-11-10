@@ -1,0 +1,1 @@
+[{"path":"/dev/ttyACM8","address":"C2"},{"path":"/dev/ttyACM9","address":"D3"},{"path":"/dev/ttyACM3","address":"A1"},{"path":"/dev/ttyACM4","address":"A2"},{"path":"/dev/ttyACM6","address":"C1"},{"path":"/dev/ttyACM5","address":"D1"},{"path":"/dev/ttyACM10","address":"B3"},{"path":"/dev/ttyACM7","address":"C3"}]

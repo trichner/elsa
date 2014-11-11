@@ -4,6 +4,10 @@ var PONG = 'vlc4_mobicomp';
 var CMD_PING = 'p';
 var CMD_ADDRESS = 'a';
 var CMD_CONFIG = 'c';
+var CMD_SEND = 'm';
+var CMD_RESET = 'r';
+var CMD_DCOM = 'd';
+var CMD_ECOM = 'e';
 
 var EVENT_RECEIVED = '1';
 var EVENT_SENDING = '2';
@@ -18,14 +22,15 @@ var Promise = require('promise');
 
 // my modules
 var tools = require("./tools");
-var ws = require('./websocket');
+
+var events = require('events');
 
 var mySocket = undefined;
 
 module.exports = {
     // lists all vlc devices available
     list : function(callback){
-        marcoPolo(callback);
+        return marcoPolo(callback);
     },
     // lists all vlc devices available
     connect : function(path,retrans,difs,cwmin,cwmax,callback){
@@ -35,7 +40,7 @@ module.exports = {
         return disconnect()
     },
     send : function(data){
-        //UNBUFFERED!
+        //UNBUFFERED! we need a queue here
         if(mySocket){
             return write(mySocket,data);
         }
@@ -44,8 +49,199 @@ module.exports = {
         if(mySocket){
             return onMessage(mySocket,callback);
         }
+    },
+    getDevice : function(path){
+        return new VLCDevice(path);
     }
 };
+
+//==== ral OO
+function VLCDevice (path) {
+    this.socket;
+    this.path = path;
+    this.emitter = new (events.EventEmitter)();
+};
+
+// open port
+VLCDevice.prototype.connect = function () { // step 3
+    this.socket = initSocket(this.path);
+    return open(this.socket)
+        .then(elisten)
+        .then(function(socket){return wait(socket,BOOTDELAY)})
+        .then(function(socket){return emit(socket,this.emitter)})
+        .then(function(){return this});
+}
+
+// close port
+VLCDevice.prototype.close = function () { // step 3
+    return close(this.socket).then(function(){return this});;
+}
+
+// events
+VLCDevice.prototype.on = function (event,callback) { // step 3
+    console.log("registering callback")
+    this.emitter.on(event,callback);
+}
+
+// write a message
+VLCDevice.prototype.send = function (dest,data) { // step 3
+    // use a stream
+    var buf = makeMessage(dest,data);
+    return write(this.socket,buf).then(function(){return this});;
+}
+
+// ping the device
+VLCDevice.prototype.ping = function () { // step 3
+    // use a stream
+    return ping(this.socket)
+        .then(function(){
+            return true;
+        },
+        function(){
+            return false;
+        })
+}
+
+// fetch the address
+// ping the device
+VLCDevice.prototype.address = function () { // step 3
+    // use a stream
+    return cmd(this.socket,CMD_ADDRESS)
+        .then(function(arr){
+            var json = arr[1];
+            return [this, strip(json.d)];
+        });
+}
+
+// reset the device
+VLCDevice.prototype.reset = function () { // step 3
+    // use a stream
+    return write(this.socket,CMD_RESET)
+        .then(function(){
+            return wait(undefined,BOOTDELAY);
+        })
+        .then(function(){return this});
+}
+
+// reset the device
+// TODO not sure if this can work, does it close the serialport?
+VLCDevice.prototype.reset = function () { // step 3
+    // use a stream
+    return write(this.socket,CMD_RESET)
+        .then(function(){
+            return wait(undefined,BOOTDELAY);
+        })
+        .then(function(){return this});
+}
+
+// enables communication
+VLCDevice.prototype.enableCom = function () { // step 3
+    // use a stream
+    return cmd(port,CMD_ECOM)
+        .then(function(arr){
+            return arr[0];
+        })
+        .then(function(){return this});
+}
+
+// disables communication
+VLCDevice.prototype.disableCom = function () { // step 3
+    // use a stream
+    return write(port,CMD_DCOM)
+        .then(function(arr){
+            return arr[0];
+        })
+        .then(function(){return this});
+}
+
+VLCDevice.prototype.configure = function(retrans,difs,cwmin,cwmax) { // step 3
+    console.log("configuring...")
+    var retString = makeConfig(retrans,difs,cwmin,cwmax);
+    var configCmd = CMD_CONFIG + makeConfig(retrans,difs,cwmin,cwmax)+ '\0';
+    return write(this.socket,configCmd)
+        .then(read)
+        .then(function(arr){
+            return new Promise(function(fulfill,reject){
+                var json = arr[1];
+                if(json.d==retString){
+                    console.log("config set up")
+                    fulfill();
+                }else{
+                    reject(new Error("Cannot configure device."));
+                }
+            });
+        })
+        .then(function(){return this});
+}
+//-------
+
+var makeMessage = function(dest,data){
+    var baddr = hexStrToInt(dest);
+    var dlen = data.length + 3;
+    var buf = new Buffer(dlen);
+
+    buf.write(CMD_SEND,0);
+    buf.writeUInt8(baddr,1);
+    buf.write(data,2)
+    buf.write('\0',dlen-1)
+    return buf;
+}
+
+var hexStrToInt = function(str) {
+    var result = 0;
+    while (str.length > 0) {
+        result <<=4;
+        var nibble;
+        switch(str.pop()){
+            case '0': nibble = 0; break;
+            case '1': nibble = 1; break;
+            case '2': nibble = 2; break;
+            case '3': nibble = 3; break;
+            case '4': nibble = 4; break;
+            case '5': nibble = 5; break;
+            case '6': nibble = 6; break;
+            case '7': nibble = 7; break;
+            case '8': nibble = 8; break;
+            case '9': nibble = 9; break;
+            case 'a': nibble = 10; break;
+            case 'b': nibble = 11; break;
+            case 'c': nibble = 12; break;
+            case 'd': nibble = 13; break;
+            case 'e': nibble = 14; break;
+            case 'f': nibble = 15; break;
+            default:
+                continue;
+        }
+        result += nibble;
+    }
+
+    return result;
+}
+
+// registers an emitter to the given socket
+var emit = function(socket,emitter){
+    console.log("registering emitter...")
+    var router = {};
+    router[EVENT_RECEIVED] = function(payload,statistics){
+        emitter.emit('message',payload,statistics);
+    };
+
+    router[EVENT_SENDING] = function(payload,statistics){
+        emitter.emit('sending',payload,statistics);
+    };
+
+    router[EVENT_SENT] = function(payload,statistics){
+        emitter.emit('sent',payload,statistics);
+    };
+
+    return listen(socket,function(json){
+        if(router[json.c]){
+            router[json.c](json.d,json.s);
+        }
+    });
+}
+
+
 
 var connect = function(path,retrans,difs,cwmin,cwmax,callback){
     if(mySocket){
@@ -94,25 +290,29 @@ var disconnect = function(){
 
 //==== Device Discovery
 var marcoPolo = function (callback) {
-    SerialMod.list(function (err, ports) {
-        var devices = [];
-        var promises = [];
-        ports.forEach(function (port) {
-            promises.push(probePort(port,devices))
+    return new Promise(function(fulfill,reject){
+        SerialMod.list(function (err, ports) {
+            var devices = [];
+            var promises = [];
+            ports.forEach(function (port) {
+                promises.push(probePort(port,devices))
+            });
+
+            var discoveryDone = function(){
+                console.log("Discovery done.")
+                if(callback) callback(devices);
+                fulfill(devices);
+            }
+
+            // don't care if some failed
+            Promise.all(promises)
+                .then(discoveryDone,discoveryDone);
         });
-
-        var discoveryDone = function(){
-            console.log("Discovery done.")
-            callback(devices);
-        }
-
-        Promise.all(promises)
-            .then(discoveryDone,discoveryDone);
     });
 };
 
 var probePort = function(port,devices){
-    console.log("probing: " + port.comName)
+    console.log("probing " + port.comName + "...")
 
     var socket = initSocket(port.comName);
 
@@ -206,10 +406,6 @@ var close = function(port){
 var write = function(port,data){
     return new Promise(function(fullfill,reject){
         console.log("writing: '" + data + "'")
-        if(!Buffer.isBuffer(data)){
-            data = new Buffer(data,'utf8')
-        }
-
         port.write(data,function(error){
             console.log('pushed data...');
             if(error){

@@ -65,16 +65,18 @@ function VLCDevice (path) {
 // open port
 VLCDevice.prototype.connect = function () { // step 3
     this.socket = initSocket(this.path);
+    var self = this;
     return open(this.socket)
         .then(elisten)
         .then(function(socket){return wait(socket,BOOTDELAY)})
-        .then(function(socket){return emit(socket,this.emitter)})
-        .then(function(){return this});
+        .then(function(socket){return emit(socket,self.emitter)})
+        .then(function(){return self});
 }
 
 // close port
 VLCDevice.prototype.close = function () { // step 3
-    return close(this.socket).then(function(){return this});;
+    var self = this;
+    return close(this.socket).then(function(){return self});;
 }
 
 // events
@@ -87,18 +89,20 @@ VLCDevice.prototype.on = function (event,callback) { // step 3
 VLCDevice.prototype.send = function (dest,data) { // step 3
     // use a stream
     var buf = makeMessage(dest,data);
-    return write(this.socket,buf).then(function(){return this});;
+    var self = this;
+    return write(this.socket,buf).then(function(){return self});;
 }
 
 // ping the device
 VLCDevice.prototype.ping = function () { // step 3
     // use a stream
+    var self = this;
     return ping(this.socket)
         .then(function(){
             return true;
         },
         function(){
-            return false;
+            return self;
         })
 }
 
@@ -106,56 +110,51 @@ VLCDevice.prototype.ping = function () { // step 3
 // ping the device
 VLCDevice.prototype.address = function () { // step 3
     // use a stream
+    var self = this;
     return cmd(this.socket,CMD_ADDRESS)
         .then(function(arr){
             var json = arr[1];
-            return [this, strip(json.d)];
+            return [self, strip(json.d)];
         });
-}
-
-// reset the device
-VLCDevice.prototype.reset = function () { // step 3
-    // use a stream
-    return write(this.socket,CMD_RESET)
-        .then(function(){
-            return wait(undefined,BOOTDELAY);
-        })
-        .then(function(){return this});
 }
 
 // reset the device
 // TODO not sure if this can work, does it close the serialport?
 VLCDevice.prototype.reset = function () { // step 3
     // use a stream
+    var self = this;
     return write(this.socket,CMD_RESET)
         .then(function(){
             return wait(undefined,BOOTDELAY);
         })
-        .then(function(){return this});
+        .then(function(){return self});
 }
 
 // enables communication
 VLCDevice.prototype.enableCom = function () { // step 3
     // use a stream
+    var self = this;
     return cmd(port,CMD_ECOM)
         .then(function(arr){
             return arr[0];
         })
-        .then(function(){return this});
+        .then(function(){return self});
 }
 
 // disables communication
 VLCDevice.prototype.disableCom = function () { // step 3
     // use a stream
+    var self = this;
     return write(port,CMD_DCOM)
         .then(function(arr){
             return arr[0];
         })
-        .then(function(){return this});
+        .then(function(){return self});
 }
 
 VLCDevice.prototype.configure = function(retrans,difs,cwmin,cwmax) { // step 3
     console.log("configuring...")
+    var self = this;
     var retString = makeConfig(retrans,difs,cwmin,cwmax);
     var configCmd = CMD_CONFIG + makeConfig(retrans,difs,cwmin,cwmax)+ '\0';
     return write(this.socket,configCmd)
@@ -171,12 +170,12 @@ VLCDevice.prototype.configure = function(retrans,difs,cwmin,cwmax) { // step 3
                 }
             });
         })
-        .then(function(){return this});
+        .then(function(){return self});
 }
 //-------
 
 var makeMessage = function(dest,data){
-    var baddr = hexStrToInt(dest);
+    var baddr = 0xFF & hexStrToInt(dest);
     var dlen = data.length + 3;
     var buf = new Buffer(dlen);
 
@@ -184,6 +183,7 @@ var makeMessage = function(dest,data){
     buf.writeUInt8(baddr,1);
     buf.write(data,2)
     buf.write('\0',dlen-1)
+    console.log("Buffer: " + buf)
     return buf;
 }
 
@@ -457,7 +457,7 @@ var listen = function(port,callback){
     return new Promise(function(fulfill,reject){
         console.log("listening...")
         port.on('data', function(data) {
-            console.log("Got: " + data)
+            console.log('Received: ' + data)
             callback(JSON.parse(data));
         });
         fulfill(port);

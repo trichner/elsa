@@ -18,7 +18,6 @@ pserial.list()
     .then(function(){
         console.log("instantiating device...")
         var device = pserial.getDevice("COM4");
-        console.log("got device...")
         device.on('sending',function(payload,statistics){
             console.log("Stats: " + statistics);
             console.log("Data:  " + payload);
@@ -28,9 +27,12 @@ pserial.list()
     })
     .then(function(device){
         console.log("configuring...")
-        console.log("got device: " + JSON.stringify(device))
         return device.configure(3,10,4,16);
-    }).done(function(){
+    })
+    .then(function(device){
+        return device.send(['F','F'],"Hello World")
+    })
+    .done(function(){
         console.log("all systems nominal")
     })
 

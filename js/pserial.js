@@ -1,6 +1,6 @@
-// hardware specific constants, DO NOT CHANGE unless you are a real pro
+// VLC Constants
 var BAUDRATE = 115200;
-var PONG = 'vlc4_mobicomp';
+
 var CMD_PING = 'p';
 var CMD_ADDRESS = 'a';
 var CMD_CONFIG = 'c';
@@ -13,17 +13,21 @@ var EVENT_RECEIVED = '1';
 var EVENT_SENDING = '2';
 var EVENT_SENT = '3';
 
+var PONG = 'vlc4_mobicomp';
+var MAX_PKG_SIZE = 200;
 var BOOTDELAY = 2000;
 
 // serial port module
 var SerialMod = require("serialport");
-var SerialPort = SerialMod.SerialPort;
-var Promise = require('promise');
+var events    = require('events');
+var Promise   = require('promise');
 
 // my modules
-var tools = require("./tools");
+var tools     = require("./tools");
 
-var events = require('events');
+
+var SerialPort = SerialMod.SerialPort;
+var SizeChunker = chunkingStreams.SizeChunker;
 
 var mySocket = undefined;
 
@@ -60,6 +64,10 @@ function VLCDevice (path) {
     this.socket;
     this.path = path;
     this.emitter = new (events.EventEmitter)();
+    this.chunker = new SizeChunker({
+        chunkSize: 200, // must be a number greater than zero.
+        flushTail: true  // flush or not remainder of an incoming stream. Defaults to false
+    });
 };
 
 // open port
@@ -71,6 +79,19 @@ VLCDevice.prototype.connect = function () { // step 3
         .then(function(socket){return wait(socket,BOOTDELAY)})
         .then(function(socket){return emit(socket,self.emitter)})
         .then(function(){return self});
+}
+
+// close port
+VLCDevice.prototype.setPacketSize = function (size) { // step 3
+    if (size > 0 && size <= MAX_PKG_SIZE) {
+        this.chunker =
+        this.chunker = new SizeChunker({
+            chunkSize: size, // must be a number greater than zero.
+            flushTail: true  // flush or not remainder of an incoming stream. Defaults to false
+        });
+    }else{
+        throw new Error("Package size invalid, should be in (0,200] but was " + size);
+    }
 }
 
 // close port
@@ -87,6 +108,11 @@ VLCDevice.prototype.on = function (event,callback) { // step 3
 
 // write a message
 VLCDevice.prototype.send = function (dest,data) { // step 3
+
+    chunker.on('data', function(chunk) {
+        output.write(chunk.data);
+    });
+
     // use a stream
     var buf = makeMessage(dest,data);
     var self = this;
@@ -172,6 +198,63 @@ VLCDevice.prototype.configure = function(retrans,difs,cwmin,cwmax) { // step 3
         })
         .then(function(){return self});
 }
+
+//==== Chunking
+
+var State = {
+    IDLE : "IDLE",
+    BUSY : "BUSY"
+};
+
+var stream = require('stream');
+var util = require('util');
+
+function QueueStream () { // step 2
+    stream.Writable.call(this);
+};
+util.inherits(QueueStream, stream.Writable); // step 1
+
+QueueStream.prototype._write = function (chunk, encoding, done) { // step 3
+    console.log(chunk.toString());
+    done();
+}
+
+
+
+function ChunkedBuffer (chunkSize) {
+    this.buffers = [];
+    this.chunkSize = chunkSize;
+};
+
+// disables communication
+ChunkedBuffer.prototype.push = function (data) { // step 3
+    var buf;
+    if(!Buffer.isBuffer(data)){
+        buf = new Buffer(data);
+    }else{
+        buf = data;
+    }
+
+    while(buf.length>this.chunkSize){
+        this.buffers.push(buf.slice(0,this.chunkSize));
+        buf = buf.slice(this.chunkSize);
+    }
+    this.buffers.push(buf.slice(0));
+}
+
+// disables communication
+ChunkedBuffer.prototype.read = function () { // step 3
+    var ret;
+    if(this.buffers.length==0){
+        ret = new Buffer();
+    }else{
+        ret = this.buffers.shift();
+    }
+    return ret;
+}
+
+
+
 //-------
 
 var makeMessage = function(dest,data){
@@ -192,7 +275,7 @@ var hexStrToInt = function(str) {
     while (str.length > 0) {
         result <<=4;
         var nibble;
-        switch(str.pop()){
+        switch(str.shift()){
             case '0': nibble = 0; break;
             case '1': nibble = 1; break;
             case '2': nibble = 2; break;

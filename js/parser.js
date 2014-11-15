@@ -190,14 +190,6 @@ function CsvStreamSocket(stream){
 
 CsvStreamSocket.prototype.write = function(message){
     // Yay! all is parsed, return object!
-    var msg = {
-        sender: src,
-        receiver: dst,
-        type: type, // or Receive
-        packet_type: ptype, // or ACK or DR?
-        data_size: data_size,
-        timestamp: timestamp
-    };
 
     var line = "" + message.timestamp;
     line = csvAppend(line,message.type);

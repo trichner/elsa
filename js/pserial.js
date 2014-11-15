@@ -236,6 +236,7 @@ var makeMessage = function(dest,data){
 
 var hexStrToInt = function(str) {
     var result = 0;
+    str = str.split('');
     while (str.length > 0) {
         result <<=4;
         var nibble;

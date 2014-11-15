@@ -88,7 +88,8 @@ rl.setPrompt('chat> '.green);
 rl.prompt();
 
 rl.on('line', function (msg) {
-    switch (msg) {
+    var arg = msg.split(' ')
+    switch (arg[0]) {
         case '/quit':
             console.log('Quitting...'.green);
             rl.close();
@@ -106,7 +107,12 @@ rl.on('line', function (msg) {
             })
             break;
         case '/spam':
-            console.log('generating traffic...'.red)
+            if(arg.length == 3) {
+                console.log('generating traffic...'.red)
+                trafficGen(arg[1],arg[2])
+            } else {
+                console.log('Please specify an address and packet size in bytes, e.g /spam AB 16'.red)
+            }
             break;
         default:
             if(isPrivateMessage(msg)) {
@@ -136,4 +142,20 @@ function hasMessagePrefix(msg) {
 }
 function hasPrefix(msg,char) {
     return msg.length > 0 && msg[0] == char;
+}
+
+function trafficGen(address, packetSize) {
+    device.send(address, messageGen(packetSize))
+    device.on("sent", function (payload, statistics) {
+        device.send(address, messageGen(packetSize))
+    })
+}
+
+function messageGen(packetSize) {
+    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXZabcdefghijklmnopqrstuvwxyz1234567890"
+    var text = ""
+    for(var i=0 ; i < packetSize ; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length))
+    }
+    return text
 }

@@ -61,6 +61,9 @@ LogParser.prototype.parseLine = function(line){
     // example line:
     // send/receive  | packet type | src->dst | data size | ? | backoff | cw  | timestamp (offset)
     // R                A            D3->C3         0       3       0       0   27128
+    if(!line){
+        return undefined;
+    }
     var splits = line.split(',');
     if(splits.length!=8){
         return undefined;

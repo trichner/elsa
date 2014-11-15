@@ -48,10 +48,17 @@ if(argLength > 1) {
     cwmax = 16;
     console.log("Using default values path=%s, retrans=3, difs=10, cwmin=4, cwmax=16".green,path);
 }
+var device = pserial.getDevice(path)
 
-pserial.connect(function(path,retrans,difs,cwmin,cwmax,callback) {
-    res.json(devices);
+device.connect()
+        .then(function(){console.log("Connection successful")},function(){console.log("Connection failed")})
+device.configure(retrans, difs, cwmin, cwmax)
+        .then(function(){console.log("Configuration successful")},function(){console.log("Configuration failed")})
+
+device.on('message', function(payload, statistics) {
+    console.log('echo> '+ payload);
 });
+
 
 var rl = readline.createInterface({
   input: process.stdin,
@@ -61,8 +68,6 @@ rl.setPrompt('chat> ');
 rl.prompt();
 
 rl.on('line', function (msg) {
-
-
   switch(msg) {
     case 'quit':
       console.log('Quitting...'.green);
@@ -73,6 +78,7 @@ rl.on('line', function (msg) {
       console.log('echo> Pong!'.rainbow)
       break;
     default:
+      device.send(msg);
       console.log('echo> '+msg);
   }
   rl.prompt();

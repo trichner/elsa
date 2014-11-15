@@ -2,6 +2,8 @@
 // @author mohlerm
 
 var pserial = require("./pserial");
+var parser = require('./parser');
+var fs = require('fs');
 var colors = require('colors');
 var os = require('os');
 var readline = require('readline');
@@ -75,8 +77,12 @@ device.connect()
     //    return device.enableCom()
     //})
 
+var stream = fs.createWriteStream("csvlog.csv")
+var pipe = parser.csvPipeline(stream)
+
 device.on('message', function (payload, statistics) {
     console.log('echo> ' + payload.green);
+    pipe.write(statistics);
 });
 
 
@@ -148,6 +154,7 @@ function trafficGen(address, packetSize) {
     device.send(address, messageGen(packetSize))
     device.on("sent", function (payload, statistics) {
         device.send(address, messageGen(packetSize))
+        pipe.write(statistics);
     })
 }
 

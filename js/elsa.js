@@ -51,12 +51,13 @@ if(argLength > 1) {
 var device = pserial.getDevice(path)
 
 device.connect()
-        .then(function(){console.log("Connection successful")},function(){console.log("Connection failed")})
-device.configure(retrans, difs, cwmin, cwmax)
-        .then(function(){console.log("Configuration successful")},function(){console.log("Configuration failed")})
+        .then(function(){console.log("Connection successful\nchat> ".green)},function(){console.log("Connection failed\nchat> ".green)})
+        .then(function(){return device.configure(retrans, difs, cwmin, cwmax)})
+        .then(function(){console.log("Configuration successful\nchat> ".green)},function(){console.log("Configuration failed\nchat> ".green)})
+        .then(function(){return device.enableCom()})
 
 device.on('message', function(payload, statistics) {
-    console.log('echo> '+ payload);
+    console.log('echo> '+ payload.green);
 });
 
 
@@ -77,9 +78,11 @@ rl.on('line', function (msg) {
     case 'ping':
       console.log('echo> Pong!'.rainbow)
       break;
+    case 'list':
+      pserial.list(function(devices){devices.forEach(function(device){console.log((device.path + '\n').green)})})
     default:
-      device.send(msg);
-      console.log('echo> '+msg);
+      device.send('FF',msg);
+      //console.log('echo> '+msg.green);
   }
   rl.prompt();
 }).on('close', function() {

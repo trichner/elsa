@@ -27,13 +27,13 @@ module.exports = {
         return new LogParser(new StatPipe(new Decorator(socket),WINDOW_SIZE_MS));
     },
     csvPipeline : function(stream){
-        return new LogParser(new CsvStreamSocket(stream));
+        return new LogParser(new CsvLog(stream));
     },
     delayPipeline : function(stream){
         return new LogParser(new DelayLog(stream));
     },
     logPipeline : function(csv,delay){
-        return new LogParser(new Tee([new CsvStreamSocket(csv),new DelayLog(delay)]));
+        return new LogParser(new Tee([new CsvLog(csv),new DelayLog(delay)]));
     }
     // initializes a setup
 };
@@ -204,12 +204,12 @@ ConsoleSocket.prototype.write = function(message){
 }
 
 //==== socket that only writes to file
-function CsvStreamSocket(stream){
+function CsvLog(stream){
     stream.write("# timestamp [ms], type, package_type, source, dest, package_size");
     this.stream = stream;
 }
 
-CsvStreamSocket.prototype.write = function(message){
+CsvLog.prototype.write = function(message){
     // Yay! all is parsed, return object!
 
     var line = "" + message.timestamp;

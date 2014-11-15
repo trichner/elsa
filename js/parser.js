@@ -235,13 +235,11 @@ function DelayLog(stream){
 DelayLog.prototype.write = function(message){
     if(message.type==MsgType.SEND && message.packet_type==PkgType.DATA && message.receiver!='FF'){
         this.lastData = message;
-    }else{
-        if(this.lastData && message.packet_type==PkgType.ACK){
-            var line = "";
-            line += message.timestamp - this.lastData.timestamp;
-            line = csvAppend(line,this.lastData.data_size);
-            this.stream.write(line + '\n');
-        }
+    }else if(message.type == MsgType.RECEIVE && this.lastData && message.packet_type==PkgType.ACK) {
+        var line = "";
+        line += (message.timestamp - this.lastData.timestamp);
+        line = csvAppend(line, this.lastData.data_size);
+        this.stream.write(line + '\n');
     }
 }
 

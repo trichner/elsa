@@ -25,6 +25,9 @@ module.exports = {
     },
     newPipeline : function(socket){
         return new LogParser(new StatPipe(new Decorator(socket),WINDOW_SIZE_MS));
+    },
+    csvPipeline : function(stream){
+        return new LogParser(new CsvStreamSocket(stream));
     }
     // initializes a setup
 };
@@ -58,7 +61,7 @@ LogParser.prototype.parseLine = function(line){
     // example line:
     // send/receive  | packet type | src->dst | data size | ? | backoff | cw  | timestamp (offset)
     // R                A            D3->C3         0       3       0       0   27128
-    var splits = line.split('\t');
+    var splits = line.split(',');
     if(splits.length!=8){
         return undefined;
     }
@@ -180,6 +183,34 @@ ConsoleSocket.prototype.write = function(message){
     console.log(message);
 }
 
+//==== socket that only writes to file
+function CsvStreamSocket(stream){
+    this.stream = stream;
+}
+
+CsvStreamSocket.prototype.write = function(message){
+    // Yay! all is parsed, return object!
+    var msg = {
+        sender: src,
+        receiver: dst,
+        type: type, // or Receive
+        packet_type: ptype, // or ACK or DR?
+        data_size: data_size,
+        timestamp: timestamp
+    };
+
+    var line = "" + message.timestamp;
+    line = csvAppend(line,message.type);
+    line = csvAppend(line,message.packet_type);
+    line = csvAppend(line,message.sender);
+    line = csvAppend(line,message.receiver);
+    line = csvAppend(line,message.data_size);
+    stream.write(line + '\n');
+}
+
+function csvAppend(line,str) {
+    return line + ',' + str;
+}
 
 //==== add throughput statistics to message
 // keeps a window of the last few messages to calculate the throughput

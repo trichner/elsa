@@ -135,7 +135,7 @@ VLCDevice.prototype.enableCom = function () { // step 3
 VLCDevice.prototype.disableCom = function () { // step 3
     // use a stream
     var self = this;
-    return write(this.socket,CMD_DCOM)
+    return cmd(this.socket,CMD_DCOM)
         .then(function(arr){
             return arr[0];
         })

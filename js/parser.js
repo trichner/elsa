@@ -205,7 +205,7 @@ ConsoleSocket.prototype.write = function(message){
 
 //==== socket that only writes to file
 function CsvLog(stream){
-    stream.write("# timestamp [ms], type, package_type, source, dest, package_size");
+    stream.write("# timestamp [ms], type, package_type, source, dest, package_size\n");
     this.stream = stream;
 }
 
@@ -227,7 +227,7 @@ function csvAppend(line,str) {
 
 //==== socket that only writes to file
 function DelayLog(stream){
-    stream.write("# delay [ms], bytes_sent")
+    stream.write("# delay [ms], bytes_sent\n")
     this.stream = stream;
     this.lastData = undefined;
 }

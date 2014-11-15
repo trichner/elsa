@@ -22,49 +22,78 @@ var args = process.argv.slice(2);
 var path, retrans, difs, cwmin, cwmax, log;
 
 var argLength = args.length;
+var errorFlag = false;
+
+// SET DEFAULT VALUES
+if (isWin) {
+    path = "COM4";
+} else {
+    path = "/dev/ttyACM0"
+}
+log = "";
+retrans = 3;
+difs = 10;
+cwmin = 4;
+cwmax = 16;
+
 
 if (argLength > 0) {
-    if (argLength == 2 && args[0] == '-p' || argLength == 4 && args[2] == '-l' || argLength == 9 && args[4] == '-c') {
-        path = args[1];
-        console.log("Using custom path=%s".green, path);
-        if (argLength == 4 && args[2] == '-l') {
-            log = args[3];
-            console.log("Logging to files: %s_log.csv and %s_delay.csv".green, log, log);
+    var paramMap = {};
+    var arg;
+    var option;
+    while(arg = args.shift()) {
+        if(arg[0] == '-') {
+            option = arg[1];
+            paramMap[option] = [];
         } else {
-            log = "";
-            console.log("Logging disabled".green);
+            if(!option) {
+                errorFlag = true;
+                break;
+            } else {
+                paramMap[option].push(arg)
+            }
         }
-        if (argLength == 9 && args[4] == '-c') {
-            retrans = args[5];
-            difs = args[6];
-            cwmin = args[7];
-            cwmax = args[8];
-            console.log("Using custom values retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
+    }
+    if(paramMap.hasOwnProperty('p')) {
+        if(paramMap.p && paramMap.p.length == 1) {
+            path = paramMap.p[0];
+            console.log("Using custom path=%s".green, path);
         } else {
-            retrans = 3;
-            difs = 10;
-            cwmin = 4;
-            cwmax = 16;
-            console.log("Using default values, retrans=3, difs=10, cwmin=4, cwmax=16".green);
+            errorFlag = true;
         }
     } else {
+        console.log("Using default path=%s".green, path);
+    }
+    if(paramMap.hasOwnProperty('l')) {
+        if(paramMap.l && paramMap.l.length == 1) {
+            log = paramMap.l[0];
+            console.log("Logging to files: %s_log.csv and %s_delay.csv".green, log, log);
+        } else {
+            errorFlag = true;
+        }
+    } else {
+        console.log("Logging disabled".green);
+    }
+    if(paramMap.hasOwnProperty('c')) {
+        if(paramMap.c && paramMap.c.length == 4) {
+            retrans = paramMap.c[0];
+            difs = paramMap.c[1];
+            cwmin = paramMap.c[2];
+            cwmax = paramMap.c[3];
+            console.log("Using custom values retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
+        }
+    } else {
+        console.log("Using default values, retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
+    }
+
+    if(errorFlag) {
         console.log("Do not understand command line input; Please use: -p {PATH} -l {LOGFILE} -c {RETRANS} {DIFS} {CWMIN} {CWMAX} or leave empty for default".red);
         process.exit(1);
     }
 
+
 } else {
-// default values
-    if (isWin) {
-        path = "COM4";
-    } else {
-        path = "/dev/ttyACM0"
-    }
-    log = "";
-    retrans = 3;
-    difs = 10;
-    cwmin = 4;
-    cwmax = 16;
-    console.log("Using default values path=%s, retrans=3, difs=10, cwmin=4, cwmax=16 and logging disabled".green, path);
+    console.log("Using default values path=%s, retrans=%s, difs=%s, cwmin=%s, cwmax=%s and logging disabled".green, path, retrans, difs, cwmin, cwmax);
 }
 var device = pserial.getDevice(path)
 

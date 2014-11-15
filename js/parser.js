@@ -233,7 +233,7 @@ function DelayLog(stream){
 }
 
 DelayLog.prototype.write = function(message){
-    if(message.type==MsgType.SEND && message.packet_type==PkgType.DATA){
+    if(message.type==MsgType.SEND && message.packet_type==PkgType.DATA && message.receiver!='FF'){
         this.lastData = message;
     }else{
         if(this.lastData && message.packet_type==PkgType.ACK){

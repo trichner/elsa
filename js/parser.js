@@ -235,7 +235,8 @@ DelayLog.prototype.write = function(message){
         this.lastData = message;
     }else{
         if(this.lastData && message.packet_type==PkgType.ACK){
-            var line = message.timestamp - this.lastData.timestamp;
+            var line = "";
+            line += message.timestamp - this.lastData.timestamp;
             line = csvAppend(line,this.lastData.data_size);
             this.stream.write(line + '\n');
         }

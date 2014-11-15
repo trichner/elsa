@@ -19,18 +19,26 @@ console.log(' \\___|_|___/\\__,_| VLC Chat');
 var isWin = (os.platform() === 'win32' || os.platform() === 'win64');
 var args = process.argv.slice(2);
 
-var path, retrans, difs, cwmin, cwmax;
+var path, retrans, difs, cwmin, cwmax, log;
 
 var argLength = args.length;
-if (argLength > 1) {
-    if (argLength == 2 && args[0] == '-p' || argLength == 7 && args[2] == '-c') {
+
+if (argLength > 0) {
+    if (argLength == 2 && args[0] == '-p' || argLength == 4 && args[2] == '-l' || argLength == 9 && args[4] == '-c') {
         path = args[1];
         console.log("Using custom path=%s".green, path);
-        if (argLength > 6 && args[2] == '-c') {
-            retrans = args[3];
-            difs = args[4];
-            cwmin = args[5];
-            cwmax = args[6];
+        if (argLength == 4 && args[2] == '-l') {
+            log = args[3];
+            console.log("Logging to files: %s_log.csv and %s_delay.csv".green, log, log);
+        } else {
+            log = "";
+            console.log("Logging disabled".green);
+        }
+        if (argLength == 9 && args[4] == '-c') {
+            retrans = args[5];
+            difs = args[6];
+            cwmin = args[7];
+            cwmax = args[8];
             console.log("Using custom values retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
         } else {
             retrans = 3;
@@ -40,7 +48,7 @@ if (argLength > 1) {
             console.log("Using default values, retrans=3, difs=10, cwmin=4, cwmax=16".green);
         }
     } else {
-        console.log("Do not understand command line input; Please use: -p {PATH} -c {RETRANS} {DIFS} {CWMIN} {CWMAX} or leave empty for default".red);
+        console.log("Do not understand command line input; Please use: -p {PATH} -l {LOGFILE} -c {RETRANS} {DIFS} {CWMIN} {CWMAX} or leave empty for default".red);
         process.exit(1);
     }
 
@@ -51,11 +59,12 @@ if (argLength > 1) {
     } else {
         path = "/dev/ttyACM0"
     }
+    log = "";
     retrans = 3;
     difs = 10;
     cwmin = 4;
     cwmax = 16;
-    console.log("Using default values path=%s, retrans=3, difs=10, cwmin=4, cwmax=16".green, path);
+    console.log("Using default values path=%s, retrans=3, difs=10, cwmin=4, cwmax=16 and logging disabled".green, path);
 }
 var device = pserial.getDevice(path)
 
@@ -77,13 +86,28 @@ device.connect()
     //    return device.enableCom()
     //})
 
-var stream = fs.createWriteStream("csvlog.csv")
-var pipe = parser.csvPipeline(stream)
+if(log != "") {
+    var csv = fs.createWriteStream(log+"_log.csv");
+    var delay = fs.createWriteStream(log+"_delay.csv");
+    var pipe = parser.logPipeline(csv, delay);
+}
 
 device.on('message', function (payload, statistics) {
     console.log('echo> ' + payload.green);
-    pipe.write(statistics);
+    if(log != "") {
+        pipe.write(statistics)
+    }
 });
+device.on("sent", function (payload, statistics) {
+    if(log != "") {
+        pipe.write(statistics)
+    }
+})
+device.on("sending", function (payload, statistics) {
+    if(log != "") {
+        pipe.write(statistics)
+    }
+})
 
 
 var rl = readline.createInterface({
@@ -154,7 +178,6 @@ function trafficGen(address, packetSize) {
     device.send(address, messageGen(packetSize))
     device.on("sent", function (payload, statistics) {
         device.send(address, messageGen(packetSize))
-        pipe.write(statistics);
     })
 }
 

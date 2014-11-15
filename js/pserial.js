@@ -124,7 +124,7 @@ VLCDevice.prototype.reset = function () { // step 3
 VLCDevice.prototype.enableCom = function () { // step 3
     // use a stream
     var self = this;
-    return cmd(port,CMD_ECOM)
+    return cmd(this.socket,CMD_ECOM)
         .then(function(arr){
             return arr[0];
         })
@@ -135,7 +135,7 @@ VLCDevice.prototype.enableCom = function () { // step 3
 VLCDevice.prototype.disableCom = function () { // step 3
     // use a stream
     var self = this;
-    return write(port,CMD_DCOM)
+    return write(this.socket,CMD_DCOM)
         .then(function(arr){
             return arr[0];
         })

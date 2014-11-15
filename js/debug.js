@@ -14,7 +14,7 @@ pserial.list()
     })
     .then(function(){
         console.log("instantiating device...")
-        var device = pserial.getDevice("COM4");
+        var device = pserial.getDevice("/dev/ttyACM0");
         device.on('sending',function(payload,statistics){
             console.log("Stats: " + statistics);
             console.log("Data:  " + payload);
@@ -27,7 +27,11 @@ pserial.list()
         return device.configure(3,10,4,16);
     })
     .then(function(device){
-        return device.send(['F','F'],"Hello World")
+        console.log("enable com...")
+        return device.enableCom();
+    })
+    .then(function(device){
+        return device.send('FF',"Hello World")
     })
     .done(function(){
         console.log("all systems nominal")

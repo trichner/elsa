@@ -27,7 +27,6 @@ var tools     = require("./tools");
 
 
 var SerialPort = SerialMod.SerialPort;
-var SizeChunker = chunkingStreams.SizeChunker;
 
 var mySocket = undefined;
 
@@ -35,24 +34,6 @@ module.exports = {
     // lists all vlc devices available
     list : function(callback){
         return marcoPolo(callback);
-    },
-    // lists all vlc devices available
-    connect : function(path,retrans,difs,cwmin,cwmax,callback){
-        return connect(path,retrans,difs,cwmin,cwmax,callback)
-    },
-    disconnect : function(){
-        return disconnect()
-    },
-    send : function(data){
-        //UNBUFFERED! we need a queue here
-        if(mySocket){
-            return write(mySocket,data);
-        }
-    },
-    onMessage : function(callback){
-        if(mySocket){
-            return onMessage(mySocket,callback);
-        }
     },
     getDevice : function(path){
         return new VLCDevice(path);
@@ -64,10 +45,6 @@ function VLCDevice (path) {
     this.socket;
     this.path = path;
     this.emitter = new (events.EventEmitter)();
-    this.chunker = new SizeChunker({
-        chunkSize: 200, // must be a number greater than zero.
-        flushTail: true  // flush or not remainder of an incoming stream. Defaults to false
-    });
 };
 
 // open port
@@ -83,15 +60,7 @@ VLCDevice.prototype.connect = function () { // step 3
 
 // close port
 VLCDevice.prototype.setPacketSize = function (size) { // step 3
-    if (size > 0 && size <= MAX_PKG_SIZE) {
-        this.chunker =
-        this.chunker = new SizeChunker({
-            chunkSize: size, // must be a number greater than zero.
-            flushTail: true  // flush or not remainder of an incoming stream. Defaults to false
-        });
-    }else{
-        throw new Error("Package size invalid, should be in (0,200] but was " + size);
-    }
+    // blibla
 }
 
 // close port
@@ -108,11 +77,6 @@ VLCDevice.prototype.on = function (event,callback) { // step 3
 
 // write a message
 VLCDevice.prototype.send = function (dest,data) { // step 3
-
-    chunker.on('data', function(chunk) {
-        output.write(chunk.data);
-    });
-
     // use a stream
     var buf = makeMessage(dest,data);
     var self = this;

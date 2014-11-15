@@ -1,7 +1,4 @@
-
-
 var pserial = require('./pserial');
-
 
 //==== FIXME ugly show-stopper stopper
 process.on('uncaughtException', function (exception) {

@@ -116,8 +116,12 @@ device.connect()
     //})
 
 if(log != "") {
-    var csv = fs.createWriteStream(log+"_log.csv");
-    var delay = fs.createWriteStream(log+"_delay.csv");
+    var folder = 'logs/';
+    if(!fs.existsSync(folder)) {
+        fs.mkdirSync(folder);
+    }
+    var csv = fs.createWriteStream(folder + log+"_log.csv");
+    var delay = fs.createWriteStream(folder + log+"_delay.csv");
     var pipe = parser.logPipeline(csv, delay);
 }
 

@@ -30,6 +30,12 @@ if (argLength > 1) {
             cwmin = args[5];
             cwmax = args[6];
             console.log("Using custom values retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
+        } else {
+            retrans = 3;
+            difs = 10;
+            cwmin = 4;
+            cwmax = 16;
+            console.log("Using default values, retrans=3, difs=10, cwmin=4, cwmax=16".green);
         }
     } else {
         console.log("Do not understand command line input; Please use: -p {PATH} -c {RETRANS} {DIFS} {CWMIN} {CWMAX} or leave empty for default".red);

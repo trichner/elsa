@@ -40,7 +40,7 @@ if(argLength > 1) {
     if(isWin) {
         path = "COM4";
     } else {
-        path = "/dev/ttyACM0"
+        path = "/dev/ttyACM1"
     }
     retrans = 3;
     difs = 10;

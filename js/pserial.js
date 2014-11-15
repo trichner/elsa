@@ -45,22 +45,23 @@ function VLCDevice (path) {
     this.socket;
     this.path = path;
     this.emitter = new (events.EventEmitter)();
+    this.chunker = new ChunkedBuffer();
+    this.state = State.IDLE;
 };
 
 // open port
 VLCDevice.prototype.connect = function () { // step 3
+    this.emitter = new (events.EventEmitter)();
     this.socket = initSocket(this.path);
     var self = this;
     return open(this.socket)
         .then(elisten)
         .then(function(socket){return wait(socket,BOOTDELAY)})
+        .then(function(){self.on('sent',function(){
+            self._write();
+        })})
         .then(function(socket){return emit(socket,self.emitter)})
         .then(function(){return self});
-}
-
-// close port
-VLCDevice.prototype.setPacketSize = function (size) { // step 3
-    // blibla
 }
 
 // close port
@@ -79,8 +80,28 @@ VLCDevice.prototype.on = function (event,callback) { // step 3
 VLCDevice.prototype.send = function (dest,data) { // step 3
     // use a stream
     var buf = makeMessage(dest,data);
+    this.chunker.push(buf);
+    var prom = this;
+    if(this.state==State.IDLE){
+        prom = this._write()
+    }
+    return prom;
+}
+
+// write message
+VLCDevice.prototype._write = function () { // step 3
+    var prom;
     var self = this;
-    return write(this.socket,buf).then(function(){return self});;
+    if(this.chunker.ready()){
+        this.state = State.BUSY;
+        var buf = this.chunker.read();
+        prom = write(this.socket,buf)
+            .then(function(){return self});
+    }else{
+        this.state = State.IDLE;
+        prom = self;
+    }
+    return prom;
 }
 
 // ping the device
@@ -170,24 +191,8 @@ var State = {
     BUSY : "BUSY"
 };
 
-var stream = require('stream');
-var util = require('util');
-
-function QueueStream () { // step 2
-    stream.Writable.call(this);
-};
-util.inherits(QueueStream, stream.Writable); // step 1
-
-QueueStream.prototype._write = function (chunk, encoding, done) { // step 3
-    console.log(chunk.toString());
-    done();
-}
-
-
-
-function ChunkedBuffer (chunkSize) {
+function ChunkedBuffer () {
     this.buffers = [];
-    this.chunkSize = chunkSize;
 };
 
 // disables communication
@@ -199,9 +204,9 @@ ChunkedBuffer.prototype.push = function (data) { // step 3
         buf = data;
     }
 
-    while(buf.length>this.chunkSize){
-        this.buffers.push(buf.slice(0,this.chunkSize));
-        buf = buf.slice(this.chunkSize);
+    while(buf.length>MAX_PKG_SIZE){
+        this.buffers.push(buf.slice(0,MAX_PKG_SIZE));
+        buf = buf.slice(MAX_PKG_SIZE);
     }
     this.buffers.push(buf.slice(0));
 }
@@ -215,6 +220,11 @@ ChunkedBuffer.prototype.read = function () { // step 3
         ret = this.buffers.shift();
     }
     return ret;
+}
+
+// disables communication
+ChunkedBuffer.prototype.ready = function () { // step 3
+    return this.buffers.length>0
 }
 
 

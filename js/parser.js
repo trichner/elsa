@@ -197,7 +197,7 @@ CsvStreamSocket.prototype.write = function(message){
     line = csvAppend(line,message.sender);
     line = csvAppend(line,message.receiver);
     line = csvAppend(line,message.data_size);
-    stream.write(line + '\n');
+    this.stream.write(line + '\n');
 }
 
 function csvAppend(line,str) {

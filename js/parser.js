@@ -28,8 +28,25 @@ module.exports = {
     },
     csvPipeline : function(stream){
         return new LogParser(new CsvStreamSocket(stream));
+    },
+    delayPipeline : function(stream){
+        return new LogParser(new DelayLog(stream));
+    },
+    logPipeline : function(csv,delay){
+        return new LogParser(new Tee([new CsvStreamSocket(csv),new DelayLog(delay)]));
     }
     // initializes a setup
+};
+
+var MsgType = {
+    SEND : "SEND",
+    RECEIVE : "RECEIVE"
+};
+
+var PkgType = {
+    DATA : "DATA",
+    DATA_RETRY : "DATA_RETRY",
+    ACK : "ACK"
 };
 
 //---- helpers
@@ -72,9 +89,9 @@ LogParser.prototype.parseLine = function(line){
     var stype = splits[0];
     var type;
     if(stype=='S'){
-        type = 'SEND';
+        type = MsgType.SEND;
     }else if(stype=='R'){
-        type = 'RECEIVE';
+        type = MsgType.RECEIVE;
     }else{
         return undefined;
     }
@@ -82,11 +99,11 @@ LogParser.prototype.parseLine = function(line){
     var sptype = splits[1];
     var ptype;
     if(sptype=='A'){
-        ptype = 'ACK';
+        ptype = PkgType.ACK;
     }else if(sptype=='D'){
-        ptype = 'DATA';
+        ptype = PkgType.DATA;
     }else if(sptype=='DR'){
-        ptype = 'DATA_RETRY';
+        ptype = PkgType.DATA_RETRY;
     }else{
         return undefined;
     }
@@ -154,15 +171,15 @@ Decorator.prototype.aggregateMessage = function(message){
         this.aggregate[message.sender] = {transmitted:0,successful:0,retries:0};
     }
     //(any) package transmitted?
-    if(message.type == 'SEND'){
+    if(message.type == MsgType.SEND){
         this.packageCount++;
-        if(message.packet_type == 'DATA_RETRY'){
+        if(message.packet_type == PkgType.DATA_RETRY){
             this.aggregate[message.sender].transmitted++;
             this.aggregate[message.sender].retries++;
-        }else if(message.packet_type == 'DATA'){
+        }else if(message.packet_type == PkgType.DATA){
             this.aggregate[message.sender].transmitted++;
         }
-    }else if(message.type == 'RECEIVE' && message.packet_type== 'ACK'){
+    }else if(message.type == MsgType.RECEIVE && message.packet_type== PkgType.ACK){
         this.aggregate[message.receiver].successful++;
     }else{
         // we dont care
@@ -207,6 +224,24 @@ function csvAppend(line,str) {
     return line + ',' + str;
 }
 
+//==== socket that only writes to file
+function DelayLog(stream){
+    this.stream = stream;
+    this.lastData = undefined;
+}
+
+DelayLog.prototype.write = function(message){
+    if(message.type==MsgType.SEND && message.packet_type==PkgType.DATA){
+        this.lastData = message;
+    }else{
+        if(this.lastData && message.packet_type==PkgType.ACK){
+            var line = message.timestamp - this.lastData.timestamp;
+            line = csvAppend(line,this.lastData.data_size);
+            this.stream.write(line + '\n');
+        }
+    }
+}
+
 //==== add throughput statistics to message
 // keeps a window of the last few messages to calculate the throughput
 // windowSize is in ms
@@ -248,4 +283,39 @@ StatPipe.prototype.write = function (msg,done) { // step 3
 
     //---- write it to next layer
     this.socket.write(msg);
+}
+
+
+//==== Filter
+function Filter(socket,predicate){
+    this.socket = socket;
+    this.predicate = predicate;
+}
+
+Filter.prototype.write = function(message){
+    if(this.predicate(message)){
+        this.socket.write(message);
+    }
+}
+
+//==== Tee
+// write to several sockets
+function Tee(sockets){
+    this.sockets = sockets;
+}
+
+Tee.prototype.write = function(message){
+    this.sockets.forEach(function(s){
+        s.write(message);
+    });
+}
+
+//==== Callback
+// execute callback
+function CallMe(callback){
+    this.callback = callback;
+}
+
+CallMe.prototype.write = function(message){
+    this.callback(message);
 }

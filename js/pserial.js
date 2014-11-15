@@ -55,12 +55,17 @@ VLCDevice.prototype.connect = function () { // step 3
     this.socket = initSocket(this.path);
     var self = this;
     return open(this.socket)
+        // listen for errors, wait for boot
         .then(elisten)
         .then(function(socket){return wait(socket,BOOTDELAY)})
-        .then(function(){self.on('sent',function(){
-            self._write();
-        })})
-        .then(function(socket){return emit(socket,self.emitter)})
+        // write more buffered data if device ready
+        // register emitters
+        .then(function(socket){
+            self.on('sent',function(){
+                self._write();
+            })
+            return emit(socket,self.emitter)
+        })
         .then(function(){return self});
 }
 
@@ -90,6 +95,7 @@ VLCDevice.prototype.send = function (dest,data) { // step 3
 
 // write message
 VLCDevice.prototype._write = function () { // step 3
+    console.log('_writing...')
     var prom;
     var self = this;
     if(this.chunker.ready()){

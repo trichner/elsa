@@ -19,11 +19,24 @@ var BOOTDELAY = 2000;
 
 // serial port module
 var SerialMod = require("serialport");
+
+// promises
 var events    = require('events');
 var Promise   = require('promise');
 
-// my modules
-var tools     = require("./tools");
+// logging
+var winston = require('winston');
+
+var logger = new (winston.Logger)({
+    transports: [
+        new winston.transports.Console({level: 'debug'}),
+        new winston.transports.File({ filename: 'logs.log' })
+    ],
+    exceptionHandlers: [
+        new winston.transports.File({ filename: 'exceptions.log' })
+    ]
+});
+
 
 
 var SerialPort = SerialMod.SerialPort;
@@ -77,7 +90,6 @@ VLCDevice.prototype.close = function () { // step 3
 
 // events
 VLCDevice.prototype.on = function (event,callback) { // step 3
-    console.log("registering callback")
     this.emitter.on(event,callback);
 }
 
@@ -95,7 +107,7 @@ VLCDevice.prototype.send = function (dest,data) { // step 3
 
 // write message
 VLCDevice.prototype._write = function () { // step 3
-    console.log('_writing...')
+    logger.debug('_writing...')
     var prom;
     var self = this;
     if(this.chunker.ready()){
@@ -170,7 +182,7 @@ VLCDevice.prototype.disableCom = function () { // step 3
 }
 
 VLCDevice.prototype.configure = function(retrans,difs,cwmin,cwmax) { // step 3
-    console.log("configuring...")
+    logger.debug("configuring...")
     var self = this;
     var retString = makeConfig(retrans,difs,cwmin,cwmax);
     var configCmd = CMD_CONFIG + makeConfig(retrans,difs,cwmin,cwmax)+ '\0';
@@ -180,7 +192,7 @@ VLCDevice.prototype.configure = function(retrans,difs,cwmin,cwmax) { // step 3
             return new Promise(function(fulfill,reject){
                 var json = arr[1];
                 if(json.d==retString){
-                    console.log("config set up")
+                    logger.debug("config set up")
                     fulfill();
                 }else{
                     reject(new Error("Cannot configure device."));
@@ -246,7 +258,7 @@ var makeMessage = function(dest,data){
     buf.writeUInt8(baddr,1);
     buf.write(data,2)
     buf.write('\0',dlen-1)
-    console.log("Buffer: " + buf)
+    logger.debug("Buffer: " + buf)
     return buf;
 }
 
@@ -285,7 +297,7 @@ var hexStrToInt = function(str) {
 
 // registers an emitter to the given socket
 var emit = function(socket,emitter){
-    console.log("registering emitter...")
+    logger.debug("registering emitter...")
     var router = {};
     router[EVENT_RECEIVED] = function(payload,statistics){
         emitter.emit('message',payload,statistics);
@@ -333,7 +345,7 @@ var connect = function(path,retrans,difs,cwmin,cwmax,callback){
             var socket = arr[0];
             var json = arr[1];
             if(json.d==retString){
-                console.log("config set up")
+                logger.debug("config set up")
             }
             return socket;
         })
@@ -364,7 +376,7 @@ var marcoPolo = function (callback) {
             });
 
             var discoveryDone = function(){
-                console.log("Discovery done.")
+                logger.info("Discovery done.")
                 if(callback) callback(devices);
                 fulfill(devices);
             }
@@ -377,7 +389,7 @@ var marcoPolo = function (callback) {
 };
 
 var probePort = function(port,devices){
-    console.log("probing " + port.comName + "...")
+    logger.debug("probing " + port.comName + "...")
 
     var socket = initSocket(port.comName);
 
@@ -444,7 +456,7 @@ var address = function(port){
 var drain = function(port){
     return new Promise(function(fullfill,reject){
         port.drain(function(error){
-            console.log('draining...');
+            logger.debug('draining...');
             if(error){
                 reject(error);
             }else{
@@ -456,9 +468,9 @@ var drain = function(port){
 
 var close = function(port){
     return new Promise(function(fullfill,reject){
-        console.log('closing ' + port.comName +'...');
+        logger.debug('closing ' + port.comName +'...');
         port.close(function(error){
-            console.log('closed.');
+            logger.debug('closed.');
             if(error){
                 reject(error);
             }else{
@@ -470,9 +482,9 @@ var close = function(port){
 
 var write = function(port,data){
     return new Promise(function(fullfill,reject){
-        console.log("writing: '" + data + "'")
+        logger.debug("writing: '" + data + "'")
         port.write(data,function(error){
-            console.log('pushed data...');
+            logger.debug('pushed data...');
             if(error){
                 reject(error);
             }else{
@@ -488,7 +500,7 @@ var open = function(port){
             if(error){
                 reject(error);
             }else{
-                console.log("opened...")
+                logger.debug("opened...")
                 fullfill(port);
             }
         })
@@ -499,8 +511,8 @@ var read = function(port){
     return new Promise(function(fulfill,reject){
         var done = false;
         port.once('data', function(data) {
-            console.log("Got: " + data)
-            console.log("Type: " + typeof data)
+            logger.debug("Got: " + data)
+            logger.debug("Type: " + typeof data)
             if(!done) {
                 done = true;
                 fulfill([port,JSON.parse(data)]);
@@ -510,7 +522,7 @@ var read = function(port){
         var TIMEOUT = 1000;
         setTimeout(function(){
             if(!done){
-                console.log("read timeout :(")
+                logger.debug("read timeout :(")
                 done=true;
                 reject(new Error("Timeout on port '" + port.comName + "'"));
             }
@@ -520,9 +532,9 @@ var read = function(port){
 
 var listen = function(port,callback){
     return new Promise(function(fulfill,reject){
-        console.log("listening...")
+        logger.debug("listening...")
         port.on('data', function(data) {
-            console.log('Received: ' + data)
+            logger.debug('Received: ' + data)
             callback(JSON.parse(data));
         });
         fulfill(port);
@@ -531,9 +543,9 @@ var listen = function(port,callback){
 
 var elisten = function(port){
     return new Promise(function(fulfill,reject){
-        console.log("listening for errors...")
+        logger.debug("listening for errors...")
         port.on('error', function(data) {
-            console.log("oh noes! a serial error!")
+            logger.warn("oh noes! a serial error on '"+ port.path +"'!")
             port.close(function(error){
 
             })
@@ -544,7 +556,7 @@ var elisten = function(port){
 
 var wait = function(port,time){
     return new Promise(function(fulfill,reject){
-        console.log("waiting " + time + "ms...")
+        logger.debug("waiting " + time + "ms...")
         setTimeout(function(){
             fulfill(port);
         },time);

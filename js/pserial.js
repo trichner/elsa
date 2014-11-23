@@ -29,7 +29,7 @@ var winston = require('winston');
 
 var logger = new (winston.Logger)({
     transports: [
-        new winston.transports.Console({level: 'debug'}),
+        new winston.transports.Console({level: 'info'}), // change log level here!
         new winston.transports.File({ filename: 'logs.log' })
     ],
     exceptionHandlers: [

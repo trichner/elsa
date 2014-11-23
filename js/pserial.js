@@ -1,17 +1,17 @@
 // VLC Constants
 var BAUDRATE = 115200;
 
-var CMD_PING = 'p';
+var CMD_PING    = 'p';
 var CMD_ADDRESS = 'a';
-var CMD_CONFIG = 'c';
-var CMD_SEND = 'm';
-var CMD_RESET = 'r';
-var CMD_DCOM = 'd';
-var CMD_ECOM = 'e';
+var CMD_CONFIG  = 'c';
+var CMD_SEND    = 'm';
+var CMD_RESET   = 'r';
+var CMD_DCOM    = 'd';
+var CMD_ECOM    = 'e';
 
 var EVENT_RECEIVED = '1';
-var EVENT_SENDING = '2';
-var EVENT_SENT = '3';
+var EVENT_SENDING  = '2';
+var EVENT_SENT     = '3';
 
 var PONG = 'vlc4_mobicomp';
 var MAX_PKG_SIZE = 200;
@@ -19,6 +19,7 @@ var BOOTDELAY = 2000;
 
 // serial port module
 var SerialMod = require("serialport");
+var SerialPort = SerialMod.SerialPort;
 
 // promises
 var events    = require('events');
@@ -26,6 +27,16 @@ var Promise   = require('promise');
 
 // logging
 var winston = require('winston');
+
+module.exports = {
+    // lists all vlc devices available
+    list : function(callback){
+        return marcoPolo(callback);
+    },
+    getDevice : function(path){
+        return new VLCDevice(path);
+    }
+};
 
 var logger = new (winston.Logger)({
     transports: [
@@ -37,21 +48,6 @@ var logger = new (winston.Logger)({
     ]
 });
 
-
-
-var SerialPort = SerialMod.SerialPort;
-
-var mySocket = undefined;
-
-module.exports = {
-    // lists all vlc devices available
-    list : function(callback){
-        return marcoPolo(callback);
-    },
-    getDevice : function(path){
-        return new VLCDevice(path);
-    }
-};
 
 //==== ral OO
 function VLCDevice (path) {
@@ -318,51 +314,8 @@ var emit = function(socket,emitter){
     });
 }
 
-
-
-var connect = function(path,retrans,difs,cwmin,cwmax,callback){
-    if(mySocket){
-        var e = new Error("Still connected to " + mySocket.path);
-        if(callback)  callback(e);
-        return Promise.reject(e);
-    }
-    var socket = initSocket(path);
-
-    var retString = makeConfig(retrans,difs,cwmin,cwmax);
-    var configCmd = CMD_CONFIG + makeConfig(retrans,difs,cwmin,cwmax)+ '\0';
-    return open(socket)
-        .then(elisten)
-        .then(function (socket) {
-            return wait(socket, BOOTDELAY);
-        })
-        .then(function(socket){
-            return write(socket,configCmd)
-        })
-        .then(drain)
-        //
-        .then(read)
-        .then(function(arr){
-            var socket = arr[0];
-            var json = arr[1];
-            if(json.d==retString){
-                logger.debug("config set up")
-            }
-            return socket;
-        })
-        .then(function(socket){
-            mySocket = socket;
-            callback();
-        })
-}
-
 var makeConfig = function(retrans,difs,cwmin,cwmax){
     return retrans + ' ' + difs + ' ' + cwmin +' ' + cwmax ;
-}
-
-var disconnect = function(){
-    if(mySocket){
-        close(mySocket);
-    }
 }
 
 //==== Device Discovery

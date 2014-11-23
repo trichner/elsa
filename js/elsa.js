@@ -23,6 +23,9 @@ var path, retrans, difs, cwmin, cwmax, log;
 
 var argLength = args.length;
 var errorFlag = false;
+var spam = false;
+var spamReceiver = "";
+var spamPacketSize = 0;
 
 // SET DEFAULT VALUES
 if (isWin) {
@@ -85,9 +88,18 @@ if (argLength > 0) {
     } else {
         console.log("Using default values, retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
     }
-
+    if(paramMap.hasOwnProperty('s')) {
+        if(paramMap.s && paramMap.s.length == 2) {
+            spam = true;
+            spamReceiver = paramMap.s[0];
+            spamPacketSize = paramMap.s[1];
+            console.log("Using traffic generator to %s and packet size %s byte".green, spamReceiver, spamPacketSize);
+        } else {
+            errorFlag = true;
+        }
+    }
     if(errorFlag) {
-        console.log("Do not understand command line input; Please use: -p {PATH} -l {LOGFILE} -c {RETRANS} {DIFS} {CWMIN} {CWMAX} or leave empty for default".red);
+        console.log("Do not understand command line input; Please use: -p {PATH} -l {LOGFILE} -c {RETRANS} {DIFS} {CWMIN} {CWMAX} -s {RECEIVER} {PACKETSIZE} or leave empty for default".red);
         process.exit(1);
     }
 
@@ -95,6 +107,17 @@ if (argLength > 0) {
 } else {
     console.log("Using default values path=%s, retrans=%s, difs=%s, cwmin=%s, cwmax=%s and logging disabled".green, path, retrans, difs, cwmin, cwmax);
 }
+
+if(log != "") {
+    var folder = 'logs/';
+    if(!fs.existsSync(folder)) {
+        fs.mkdirSync(folder);
+    }
+    var csv = fs.createWriteStream(folder + log+"_log.csv");
+    var delay = fs.createWriteStream(folder + log+"_delay.csv");
+    var pipe = parser.logPipeline(csv, delay);
+}
+
 var device = pserial.getDevice(path)
 
 device.connect()
@@ -108,6 +131,10 @@ device.connect()
     })
     .then(function () {
         console.log("Configuration successful\nchat> ".green)
+        if(spam) {
+            console.log("Generating traffic to client %s with packet size %s\nchat> ".green, spamReceiver, spamPacketSize);
+            trafficGen(spamReceiver, spamPacketSize)
+        }
     }, function () {
         console.log("Configuration failed\nchat> ".green)
     })
@@ -115,15 +142,6 @@ device.connect()
     //    return device.enableCom()
     //})
 
-if(log != "") {
-    var folder = 'logs/';
-    if(!fs.existsSync(folder)) {
-        fs.mkdirSync(folder);
-    }
-    var csv = fs.createWriteStream(folder + log+"_log.csv");
-    var delay = fs.createWriteStream(folder + log+"_delay.csv");
-    var pipe = parser.logPipeline(csv, delay);
-}
 
 device.on('message', function (payload, statistics) {
     console.log('echo> ' + payload.green);

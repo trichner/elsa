@@ -13,8 +13,17 @@
 
 \subsection{Setup}
 We use short pylons to keep the two devices in the air in order to reduce effects from reflection on the ground.
-Then we point the LEDs of both devices directly at each other and initialize one device as a receiver. The second device is configured to send as many packets as possible, meaning that it would send a new package as soon as the previous one was either ACK'ed or discarded. We made measurements for the following distances: 10cm, 20cm, 50cm, 70cm, 100cm, 110cm, 120cm, 150cm and 200cm. For every distance we measured the throughput and delay for multiple different package sizes, which are 1B, 10B, 20B, 50B, 100B, 150B and 197B (Configuration values higher than this seemed to always fail, therefore we approximated 200B with 197B).
-Every measurement series was taken over an interval of 60s. For distances greater than 120cm we could not transmit any data successfully i.e. we never received an ACK for data sent.
+Then we point the LEDs of both devices directly at each other and initialize one device as a receiver. The second device is configured to send as many packets as possible, meaning that it would send a new package as soon as the previous one was either ACK'ed or discarded.
+
+We made measurements for the following distances: 10cm, 20cm, 50cm, 70cm, 100cm, 110cm, 120cm, 150cm and 200cm. For every distance we measured the throughput and delay for multiple different package sizes, which are 1B, 10B, 20B, 50B, 100B, 150B and 197B (Configuration values higher than this seemed to always fail, therefore we approximated 200B with 197B). Every measurement series was taken over an interval of 60s.
+
+
+\subsection{Results}
+In Figure \ref{fig:chanchar} one can clearly see that the maximum successful transmission distance is at 110m in our case. For distances greater than 110cm we could not transmit any data successfully i.e. we never received an ACK for data sent, nevertheless the receiver managed to receive at least partial packets.
+The diagram also shows that there is a clear tradeoff between throughput and delay by choosing a packetsize. Bigger packetsizes result in higher throughput while also increasing the delay.
+
+The upper and lower value of the 90\% confidence interval for the delay differ in less than one millisecond in all our measurements, whereas our setups time resolution is at most one millisecond. Hence we do not try to display it in the (already crowded) diagram.
+
 
 
 
@@ -25,9 +34,7 @@ Every measurement series was taken over an interval of 60s. For distances greate
 \label{fig:chanchar}
 \end{figure}
 
-
-
-
+The following table shows the standard deviation of the delay for all measurement series, note  that it is below one millisecond for combinations with small packetsizes and distances but can be in the order of hundreds of milliseconds for the bigger packetsizes and higher distances.
 
 \begin{verbatim}
     packetsize    distance     stddev 

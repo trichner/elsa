@@ -1,8 +1,11 @@
-\textit{How can an LED be used as a receiver?}
-The LED is used in reverse bias and therefore behaves similar to a capacitor. This means we charge it and let it discharge. We calculate the discharging time and since this time is proportional to the amount of received light on the diode we can use it to receive data.
-\newline
-\textit{Why is synchronization necessary and how is it achieved?}
-\newline
-\textit{What is	the	benefit	from using an LED as a receiver instead of a photodiode? }
-Many devices already have an LED, so no additional costs.
-One simple LED is also very cheap and in consumer electronics we want to keep the price as low as possible.
+\subsection*{How can an LED be used as a receiver?}
+The LED is used in reverse bias and therefore behaves similar to a capacitor. This means we charge it and let it discharge. We measure the voltage during discharge and since the speed of discharge is proportional to the intensity of incoming light on the diode we can use it to measure light intensity and hence to detect sent symbols.
+\subsection*{Why is synchronization necessary and how is it achieved?}
+A receiver needs to know when he has to expect a transmitted symbol. Furthermore are the vlc devices using a slotted protocol and therefore need to detect when such a slot starts and ends.
+
+Every station measures the light intensity in the beginning and the end of the so called OFF slot. If one interval detects a higher light intensity than the one at the other end of the slot, the device must correct it's local time. If the slot in the beginning was more intense, the device needs to start the next OFF slot a bit later than previously intended. If the slot in the end was more intense, the device needs to start the next OFF slot a bit earlier.
+
+If all stations follow this protocol, they will all be synchronized after some time.
+\subsection*{What is	the	benefit	from using an LED as a receiver instead of a photodiode? }
+LEDs are cheap and often already built into consumer electronics, hence often no additional hardware is
+needed to enable vlc capabilities and the costs can be kept low.

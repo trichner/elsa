@@ -10,12 +10,13 @@ In theory, if we decrease the CWMIN our throughput should increase and vice vers
 If we would work with multiple stations a smaller contention window would mean that the probability of multiple stations choosing the same value is higher and therefore more collisions happen and less throughput is achieved.
 
 \subsection{Results}
-The changes in DIFS 
-In our measurements we could not see a strong impact of the CWMIN.
+The changes in DIFS result in a variation of the throughput as expected.
+In our measurements we could not see an influence of alternating CWMIN.
+The impact is probably not strong enough and would require further testing with modifying CWMAX as well.
 
 \begin{figure}[htp]
 \centering
-\includegraphics[width=\textwidth]{../img/plot_mac.png}
+\includegraphics[width=\textwidth]{../img/plot_mac_parameters.png}
 \caption{VLC channel characteristics for differing package sizes and distances}
 \label{fig:chanchar}
 \end{figure}

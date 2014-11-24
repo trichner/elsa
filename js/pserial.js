@@ -41,7 +41,7 @@ module.exports = {
 var logger = new (winston.Logger)({
     transports: [
         new winston.transports.Console({level: 'info'}), // change log level here!
-        new winston.transports.File({ filename: 'logs.log' })
+        new winston.transports.File({level:'debug', filename: 'all-logs.log' })
     ],
     exceptionHandlers: [
         new winston.transports.File({ filename: 'exceptions.log' })

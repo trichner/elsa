@@ -172,7 +172,7 @@ rl.on('line', function (msg) {
     var arg = msg.split(' ')
     switch (arg[0]) {
         case '/quit':
-            console.log('Quitting...'.green);
+            console.log('Quitting...'.red);
             rl.close();
             device.close();
             process.exit(0);
@@ -183,13 +183,13 @@ rl.on('line', function (msg) {
         case '/list':
             pserial.list(function (devices) {
                 devices.forEach(function (device) {
-                    console.log((device.path + '\n').green)
+                    console.log((device.path + '\n').cyan)
                 })
             })
             break;
         case '/spam':
             if(arg.length == 3) {
-                console.log('generating traffic...'.red)
+                console.log('generating traffic...'.cyan)
                 trafficGen(arg[1],arg[2])
             } else {
                 console.log('Please specify an address and packet size in bytes, e.g /spam AB 16'.red)

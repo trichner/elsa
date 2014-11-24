@@ -12,7 +12,7 @@ if [ "x$1" != "x" ]; then
   while [ "x${PS[count]}" != "x" ]
   do
     sudo ./elsa.js -l $1_${PS[count]}B -s $STATION ${PS[count]} &
-    sleep 10
+    sleep 65
     echo "killing node process"
     sudo kill `pgrep node`
     sleep 2

@@ -65,7 +65,7 @@ if (argLength > 0) {
             errorFlag = true;
         }
     } else {
-        console.log("Using default path=%s".green, path);
+        console.log("Using default path=%s".magenta, path);
     }
     if(paramMap.hasOwnProperty('l')) {
         if(paramMap.l && paramMap.l.length == 1) {
@@ -86,7 +86,7 @@ if (argLength > 0) {
             console.log("Using custom values retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
         }
     } else {
-        console.log("Using default values, retrans=%s, difs=%s, cwmin=%s, cwmax=%s".green, retrans, difs, cwmin, cwmax);
+        console.log("Using default values, retrans=%s, difs=%s, cwmin=%s, cwmax=%s".magenta, retrans, difs, cwmin, cwmax);
     }
     if(paramMap.hasOwnProperty('s')) {
         if(paramMap.s && paramMap.s.length == 2) {
@@ -105,7 +105,7 @@ if (argLength > 0) {
 
 
 } else {
-    console.log("Using default values path=%s, retrans=%s, difs=%s, cwmin=%s, cwmax=%s and logging disabled".green, path, retrans, difs, cwmin, cwmax);
+    console.log("Using default values path=%s, retrans=%s, difs=%s, cwmin=%s, cwmax=%s and logging disabled".magenta, path, retrans, difs, cwmin, cwmax);
 }
 
 if(log != "") {
@@ -118,25 +118,32 @@ if(log != "") {
     var pipe = parser.logPipeline(csv, delay);
 }
 
+var rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
 var device = pserial.getDevice(path)
 
 device.connect()
     .then(function () {
-        console.log("Connection successful\nchat> ".green)
+        console.log("Connection successful".green)
     }, function () {
-        console.log("Connection failed\nchat> ".green)
+        console.log("Connection failed".red)
     })
     .then(function () {
         return device.configure(retrans, difs, cwmin, cwmax)
     })
     .then(function () {
-        console.log("Configuration successful\nchat> ".green)
+        console.log("Configuration successful".green)
         if(spam) {
-            console.log("Generating traffic to client %s with packet size %s\nchat> ".green, spamReceiver, spamPacketSize);
+            console.log("Generating traffic to client %s with packet size %s".green, spamReceiver, spamPacketSize);
             trafficGen(spamReceiver, spamPacketSize)
         }
+        rl.setPrompt('> ');
+        rl.prompt();
     }, function () {
-        console.log("Configuration failed\nchat> ".green)
+        console.log("Configuration failed".red)
     })
     //.then(function () { // it seems we don't need it since 'e' is default
     //    return device.enableCom()
@@ -144,7 +151,8 @@ device.connect()
 
 
 device.on('message', function (payload, statistics) {
-    console.log('echo> ' + payload.green);
+    console.log(('\n< ' + payload).cyan);
+    rl.prompt();
     if(log != "") {
         pipe.write(statistics)
     }
@@ -159,14 +167,6 @@ device.on("sending", function (payload, statistics) {
         pipe.write(statistics)
     }
 })
-
-
-var rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-rl.setPrompt('chat> '.green);
-rl.prompt();
 
 rl.on('line', function (msg) {
     var arg = msg.split(' ')
